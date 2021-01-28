@@ -1,0 +1,14 @@
+# @package _group_
+root : "../../../datasets/coco/images"
+train_annotations : "../../../datasets/lvis/data/lvis_v1_train.json"
+val_annotations : "../../../datasets/lvis/data/lvis_v1_val.json"
+dset_name : "lvis"
+inp_dim : 416
+num_classes : 1203
+num_workers : 2
+tr_subset : 1
+ts_subset : 1
+tr_batch_size : 8
+ts_batch_size : 8
+
+  

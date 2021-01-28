@@ -1,0 +1,3 @@
+# @package _group_
+backbone_name: "darknet_21"
+backbone_pretrained: ""

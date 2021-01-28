@@ -1,0 +1,23 @@
+master_addr: localhost
+master_port: ${now:%H%M%S}
+backend: "nccl"
+rank: 0
+world_size: 1
+apex_opt: 'O0'
+only_test: False
+
+defaults:
+  - dataset: coco
+  - backbone : darknet53
+  - yolo: head 
+  - optimizer: sgd 
+  - experiment: experiment
+  - hydra/launcher: joblib
+
+
+hydra:
+  run:
+    dir: output/${experiment.name}
+  sweep:
+    dir: output/${experiment.name}
+    subdir: ./

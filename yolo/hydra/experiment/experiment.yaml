@@ -1,0 +1,4 @@
+# @package _group_
+name: ${now:%Y-%m-%d_%H-%M-%S}
+cp: 'last'
+override_optimizer: False

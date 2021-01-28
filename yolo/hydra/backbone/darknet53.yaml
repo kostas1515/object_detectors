@@ -1,0 +1,3 @@
+# @package _group_
+backbone_name: "darknet_53"
+backbone_pretrained: "./weights/darknet53_weights_pytorch.pth"
