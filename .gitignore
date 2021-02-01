@@ -1,2 +1,7 @@
 */*/__pycache__/*
 */__pycache__/*
+yolo/cfg/*
+yolo/output/*
+yolo/slurm/*
+yolo/weights/
+yolo/*.json
