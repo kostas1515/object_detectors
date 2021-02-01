@@ -4,7 +4,7 @@ from torchvision.ops import boxes
 import itertools
 
 def test_one_epoch(dataloader,model,yolo_loss,confidence=0.1,iou_threshold=0.5):
-    inp_dim=yolo_loss[0].img_size
+    inp_dim=yolo_loss.img_size
     model.eval()
     device = torch.device('cuda')
     results = []
@@ -28,11 +28,8 @@ def test_one_epoch(dataloader,model,yolo_loss,confidence=0.1,iou_threshold=0.5):
     #         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             targets=targets2
             out=model(images)
-            outcome=[]
-            for k,y in enumerate(out):
-                outcome.append(yolo_loss[k](y))
-            
-            predictions=torch.cat(outcome,axis=1)
+            predictions=yolo_loss(out)
+
             predictions[:,:,:4]=helper.get_abs_coord(predictions[:,:,:4])
             score=predictions[:,:,4]*(predictions[:,:,5:].max(axis=2)[0])
             pred_mask=score>confidence

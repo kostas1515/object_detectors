@@ -5,6 +5,8 @@ anchors: [[[116, 90], [156, 198], [373, 326]],
 img_size: ${dataset.inp_dim}
 classes: ${dataset.num_classes}
 ignore_threshold : 0.5
+lambda_iou : 1
+iou_type : 1
 lambda_xy : 2.5
 lambda_wh : 2.5
 lambda_conf : 1.0

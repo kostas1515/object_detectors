@@ -24,4 +24,4 @@ conda activate dds
 
 cd ..
 
-OMP_NUM_THREADS=1 python main.py -m rank=0,1 world_size=2 experiment.name=lvis_baseline dataset=lvis dataset.tr_batch_size=24 apex_opt=O2
+OMP_NUM_THREADS=1 python main.py -m rank=0,1 world_size=2 experiment.name=lvis_baseline dataset=lvis dataset.tr_batch_size=24 apex_opt=O2 yolo.lambda_iou=0

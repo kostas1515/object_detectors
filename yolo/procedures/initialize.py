@@ -40,7 +40,7 @@ def get_model(cfg):
         elif cfg['optimizer']['name'] == 'adam':
             optimizer=optim.Adam(model.parameters(), lr=cfg['optimizer']['lr'],weight_decay=cfg['optimizer']['weight_decay'])
             
-        optimizer.name=cfg['optimizer']['name']
+        optimizer_name=cfg['optimizer']['name']
     else:
         cp_name=cfg['experiment']['cp']
         checkpoint = torch.load(f'checkpoints/{cp_name}.tar')
@@ -71,5 +71,8 @@ def get_model(cfg):
 
     model, optimizer = amp.initialize(model,optimizer, 
                                       opt_level=cfg.apex_opt)
+    optimizer.name = optimizer_name
+
+
     model = DDP(model)
     return model,optimizer,mAP,epoch

@@ -5,7 +5,7 @@ import procedures
 import torch
 import os
 import torch.distributed as dist
-from nets.yolo_loss import YOLOLoss
+from nets.yolo_forw import YOLOForw
 from procedures.init_dataset import get_dataloaders
 from procedures.train_one_epoch import train_one_epoch
 from procedures.test_one_epoch import test_one_epoch
@@ -47,15 +47,14 @@ def main(cfg: DictConfig) -> None:
     train_loader,test_loader = get_dataloaders(cfg)           
     
     #criterion
-    criteria=[]
-    for i in range(3):
-        criteria.append(YOLOLoss(cfg['yolo'],i))
+    criterion = YOLOForw(cfg['yolo'])
+
 
     epochs=60
     for i in range(epochs):
         if cfg.only_test is False:
-            train_one_epoch(train_loader,model,optimizer,criteria,cfg.rank)
-        results=test_one_epoch(test_loader,model,criteria)
+            train_one_epoch(train_loader,model,optimizer,criterion,cfg.rank)
+        results=test_one_epoch(test_loader,model,criterion)
         save_results(results,cfg.rank)
         dist.barrier()
         if cfg.rank==0:

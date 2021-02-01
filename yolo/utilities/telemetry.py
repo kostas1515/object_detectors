@@ -84,10 +84,33 @@ class Telemetry():
         img2show = img2show.numpy().astype(int)
         io.imshow(img2show)
 
+    def show_gt(self,k,color = (0,0,0),linelen=1):
+        img2show = self.image[k]
+        mean = torch.tensor([[[0.485, 0.456, 0.406]]]).T
+        std = torch.tensor([[[0.229, 0.224, 0.225]]]).T
+        img2show = img2show*std +mean
+        img2show = img2show*255
+        img2show =  img2show.transpose(0,1)
+        img2show =  img2show.transpose(1,2)
+        img2show = img2show.numpy().astype(np.uint8)
+
+        im = img2show.copy()
+
+        bbox=self.targets[k]['bbox'].cuda()*self.img_size
+        cords=helper.get_abs_coord(bbox)      
+        for cord in cords:
+            pt1, pt2 = (cord[0], cord[1]), (cord[2], cord[3])
+            
+            pt1 = int(pt1[0]), int(pt1[1])
+            pt2 = int(pt2[0]), int(pt2[1])
+            
+            im = cv2.rectangle(im.copy(), pt1, pt2, color, linelen)
+        
+        io.imshow(im)
 
 
 
-    def vis_attib(self,img,scale,aspect,attrib=4):
+    def vis_attrib(self,img,scale,aspect,attrib=4):
         attrib2show=self.out[scale][img,aspect,:,:,attrib].cpu().numpy()
         ax = sns.heatmap(attrib2show)
 
