@@ -14,6 +14,7 @@ defaults:
   - optimizer: sgd 
   - experiment: experiment
   - hydra/launcher: joblib
+  
 
 
 hydra:

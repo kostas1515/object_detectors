@@ -50,10 +50,12 @@ def main(cfg: DictConfig) -> None:
     #criterion
     criterion = YOLOForw(cfg['yolo'])
 
-    epochs=60
+    epochs=1
     batch_loss = torch.zeros(1)
     for i in range(epochs):
-        train_one_epoch(train_loader,model,optimizer,criterion,cfg.rank)
+        if cfg.only_test is False:
+            train_one_epoch(train_loader,model,optimizer,criterion,cfg.rank)
+
         if cfg.metrics =='mAP':
             results=test_one_epoch(test_loader,model,criterion)
             save_results(results,cfg.rank)
@@ -61,17 +63,15 @@ def main(cfg: DictConfig) -> None:
             if cfg.rank==0:
                 mAP=eval_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
                 print(f'map is {mAP}')
-                save_model(model,optimizer,mAP,i+last_epoch,'last')
-                if mAP>mAP_best:
-                    save_model(model,optimizer,mAP,i,'best')
-                    mAP_best=mAP
+                return mAP
         else:
             batch_loss = valid_one_epoch(test_loader,model,criterion,cfg.rank)
             dist.all_reduce(batch_loss, op=torch.distributed.ReduceOp.SUM, async_op=False)
             batch_loss = batch_loss / len(test_loader.dataset)
             if cfg.rank==0:
                 print(f'batch_loss is {batch_loss}')
-                save_model(model,optimizer,mAP,i+last_epoch,'last')
+                return batch_loss.item()
+        
     cleanup()
 
 if __name__=='__main__':
