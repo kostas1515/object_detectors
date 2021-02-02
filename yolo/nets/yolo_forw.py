@@ -47,9 +47,9 @@ class YOLOForw(nn.Module):
             stride_w = self.img_size / in_w
             scaled_anchors = torch.tensor([(a_w / stride_w, a_h / stride_h) for a_w, a_h in self.anchors[k]],device=self.device)
 
-            prediction = input.view(bs,3,85, in_h, in_w).permute(0, 3, 4, 1, 2).contiguous()
+            prediction = input.view(bs,3,self.bbox_attrs, in_h, in_w).permute(0, 3, 4, 1, 2).contiguous()
             # prediction = prediction.permute(0,2,3,1, 4).contiguous()
-            prediction = torch.reshape(prediction,[bs,-1,85]).contiguous()
+            prediction = torch.reshape(prediction,[bs,-1,self.bbox_attrs]).contiguous()
             grid_x = torch.linspace(0, in_w-1, in_w,device=self.device).repeat(in_w, 1).repeat(3, 1, 1).permute(1,2,0) + 0.5
             grid_y = torch.linspace(0, in_h-1, in_h,device=self.device).repeat(in_h, 1).t().repeat(3, 1, 1).permute(1,2,0) + 0.5
             grid_x=torch.reshape(grid_x,[-1])/in_w
