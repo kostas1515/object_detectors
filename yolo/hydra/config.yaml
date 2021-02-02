@@ -5,6 +5,7 @@ rank: 0
 world_size: 1
 apex_opt: 'O0'
 only_test: False
+metrics: 'val_loss'
 
 defaults:
   - dataset: coco

@@ -5,3 +5,4 @@ yolo/output/*
 yolo/slurm/*
 yolo/weights/
 yolo/*.json
+yolo/*.zip
