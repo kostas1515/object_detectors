@@ -6,3 +6,4 @@ yolo/*.json
 yolo/*.zip
 *.pyc
 *.tar
+*.pth
