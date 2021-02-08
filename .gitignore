@@ -5,3 +5,4 @@ yolo/weights/
 yolo/*.json
 yolo/*.zip
 *.pyc
+*.tar
