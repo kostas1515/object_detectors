@@ -1,0 +1,44 @@
+# @package hydra.sweeper
+_target_: hydra_plugins.hydra_ax_sweeper.ax_sweeper.AxSweeper
+
+ax_config:
+
+  # max_trials is application-specific. Tune it for your use case
+  max_trials: 100
+
+  experiment:
+    # Default to minimize, set to false to maximize
+    minimize: true
+
+  early_stop:
+    # Number of epochs without a significant improvement from
+    # the currently known best parameters
+    # An Epoch is defined as a batch of trials executed in parallel
+    max_epochs_without_improvement: 10
+
+  params:
+    yolo.lambda_xy:
+      type: range
+      bounds: [0.0, 5.0]
+    yolo.lambda_wh:
+      type: range
+      bounds: [0.0, 5.0]
+    yolo.lambda_iou:
+      type: range
+      bounds: [0.0, 5.0]
+    yolo.iou_type:
+      type: choice 
+      values : [1,2,3]
+    yolo.ignore_threshold:
+      type: range
+      bounds: [0.2, 0.8]
+    yolo.lambda_conf:
+      type: range
+      bounds: [0.25, 5.5]
+    yolo.lambda_no_conf:
+      type: range
+      bounds: [0.0001, 5.0]
+    yolo.lambda_cls:
+      type: range
+      bounds: [0.1, 10.0]
+    

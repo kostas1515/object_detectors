@@ -3,17 +3,12 @@ from dsets.transformations import ResizeToTensor,COCO91_80,Class1_0
 from torchvision import transforms 
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
-import os,sys
+import os
 from utilities import helper
-import hydra
 
 
 def get_dataloaders(cfg):
-    try:
-        cwd=hydra.utils.get_original_cwd()
-    except ValueError:
-        cwd=''
-
+    cwd = os.getenv('owd')
     config=cfg['dataset']
     dset_name=config['dset_name']
     inp_dim=config['inp_dim']
@@ -57,8 +52,8 @@ def get_dataloaders(cfg):
                                                                          Class1_0()]))     
         
 
-    train_sampler = DistributedSampler(ds_train,num_replicas=cfg.world_size,rank=cfg.rank)
-    test_sampler = DistributedSampler(ds_val,num_replicas=cfg.world_size,rank=cfg.rank)
+    train_sampler = DistributedSampler(ds_train)
+    test_sampler = DistributedSampler(ds_val)
 
     train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
                               shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,

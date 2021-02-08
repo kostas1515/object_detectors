@@ -6,7 +6,7 @@ import torch.distributed as dist
 
 def valid_one_epoch(dataloader,model,yolo_loss,rank):
     model.eval()
-    batch_loss=torch.zeros(1)
+    batch_loss=torch.zeros(1).cuda()
     torch.backends.cudnn.benchmark = True
     counter = 0 
     with torch.no_grad():
@@ -20,6 +20,6 @@ def valid_one_epoch(dataloader,model,yolo_loss,rank):
             batch_loss= batch_loss + outcome[0]
             
             if (rank == 0) &((counter % 10) ==0):
-                print(batch_loss)
+                print(outcome[0])
 
         return batch_loss

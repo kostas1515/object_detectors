@@ -3,7 +3,7 @@ master_port: ${now:%H%M%S}
 backend: "nccl"
 gpus: 1
 rank: 1
-apex_opt: 'O0'
+apex_opt: 'O2'
 only_test: False
 metrics: 'val_loss'
 
@@ -13,7 +13,8 @@ defaults:
   - yolo: head 
   - optimizer: sgd 
   - experiment: experiment
-  - hydra/launcher: basic 
+  - hp_optim: opt1
+  - hydra/sweeper: ax
     
 
 

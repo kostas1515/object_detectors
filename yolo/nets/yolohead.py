@@ -14,10 +14,7 @@ class YoloHead(nn.Module):
         self.config = config
         self.training = is_training
         self.model_params = config["backbone"]
-        try:
-            cwd=hydra.utils.get_original_cwd()
-        except ValueError:
-            cwd=''
+        cwd= os.getenv('owd')
         #  backbone
         _backbone_fn = backbone_fn[self.model_params["backbone_name"]]
         backbone_path=os.path.join(cwd,self.model_params["backbone_pretrained"])

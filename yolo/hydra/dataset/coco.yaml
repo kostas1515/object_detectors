@@ -8,5 +8,5 @@ num_classes : 80
 num_workers : 1
 tr_subset : 1
 ts_subset : 1
-tr_batch_size : 16
-ts_batch_size : 8
+tr_batch_size : 20
+ts_batch_size : 20
