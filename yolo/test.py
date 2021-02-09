@@ -76,6 +76,8 @@ def pipeline(rank,cfg):
                 return mAP
         else:
             batch_loss = valid_one_epoch(test_loader,model,criterion,rank)
+            if torch.isnan(batch_loss):
+                batch_loss = torch.tensor([1e6],device='cuda')
             dist.all_reduce(batch_loss, op=torch.distributed.ReduceOp.SUM, async_op=False)
             if rank==0:
                 print(f'batch_loss is {batch_loss}')
