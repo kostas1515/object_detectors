@@ -6,9 +6,9 @@
 #Specify the GPU partition
 #SBATCH -p gpu,gpuc
 #Specify the number of GPUs to be used
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:3
 # Define job name
-#SBATCH -J COCO
+#SBATCH -J B_OPT
 # Alocate memeory per core
 #SBATCH --mem-per-cpu=32000M
 # Setting maximum time days-hh:mm:ss]
@@ -24,4 +24,4 @@ conda activate dds
 
 cd ..
 
-python test.py -m gpus=2 experiment.name=lvis_baseline dataset=lvis dataset.tr_batch_size=24 apex_opt=O2
+OMP_NUM_THREADS=1 python test.py -m gpus=3 experiment.name=coco_baseline dataset=coco dataset.tr_batch_size=32 apex_opt=O2

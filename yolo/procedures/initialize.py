@@ -73,6 +73,8 @@ def get_model(cfg):
                                       opt_level=cfg.apex_opt)
     optimizer.name = optimizer_name
 
-
-    model = DDP(model)
+    try:
+        model = DDP(model)
+    except AssertionError:
+        pass
     return model,optimizer,mAP,epoch

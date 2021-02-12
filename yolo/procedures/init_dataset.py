@@ -51,17 +51,27 @@ def get_dataloaders(cfg):
                                             transform=transforms.Compose([ResizeToTensor(inp_dim),
                                                                          Class1_0()]))     
         
+    try:
+        train_sampler = DistributedSampler(ds_train)
+        test_sampler = DistributedSampler(ds_val)
 
-    train_sampler = DistributedSampler(ds_train)
-    test_sampler = DistributedSampler(ds_val)
+        train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
+                                  shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
+                                  pin_memory=True,sampler=train_sampler, multiprocessing_context='fork')
 
-    train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
-                              shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
-                              pin_memory=True,sampler=train_sampler, multiprocessing_context='fork')
+        test_loader = DataLoader(dataset=ds_val,batch_size=ts_batch_size,
+                                  shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
+                                  pin_memory=True,sampler=test_sampler,multiprocessing_context='fork')
+    except AssertionError:
+        train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
+                                  shuffle=True,num_workers=num_workers,collate_fn=helper.collate_fn,
+                                  pin_memory=True,multiprocessing_context='fork')
 
-    test_loader = DataLoader(dataset=ds_val,batch_size=ts_batch_size,
-                             shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
-                             pin_memory=True,sampler=test_sampler,multiprocessing_context='fork')
+        test_loader = DataLoader(dataset=ds_val,batch_size=ts_batch_size,
+                                 shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
+                                 pin_memory=True,multiprocessing_context='fork')
+
+
     test_loader.dset_name = dset_name
 
     return train_loader,test_loader

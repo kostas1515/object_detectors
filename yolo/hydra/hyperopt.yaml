@@ -2,10 +2,10 @@ master_addr: localhost
 master_port: ${now:%H%M%S}
 backend: "nccl"
 gpus: 1
-rank: 1
 apex_opt: 'O2'
 only_test: False
 metrics: 'val_loss'
+job_id: ${hydra:job.num}
 
 defaults:
   - dataset: coco
@@ -15,6 +15,8 @@ defaults:
   - experiment: experiment
   - hp_optim: opt1
   - hydra/sweeper: ax
+  - hydra/launcher: joblib
+
     
 
 
@@ -24,3 +26,11 @@ hydra:
   sweep:
     dir: output/${experiment.name}
     subdir: ./
+  launcher:
+    n_jobs: ${gpus}
+
+
+
+
+  
+  
