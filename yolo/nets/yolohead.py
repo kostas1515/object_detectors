@@ -3,22 +3,23 @@ import torch.nn as nn
 from collections import OrderedDict
 import os
 import hydra
+import time
 
 from .backbone import backbone_fn
 
 
 class YoloHead(nn.Module):
     def __init__(self, config, is_training=True):
-        
         super(YoloHead, self).__init__()
         self.config = config
         self.training = is_training
         self.model_params = config["backbone"]
+        device = config.rank
         cwd= os.getenv('owd')
         #  backbone
         _backbone_fn = backbone_fn[self.model_params["backbone_name"]]
         backbone_path=os.path.join(cwd,self.model_params["backbone_pretrained"])
-        self.backbone = _backbone_fn(backbone_path)
+        self.backbone = _backbone_fn(backbone_path,device)
         _out_filters = self.backbone.layers_out_filters
         #  embedding0
         final_out_filter0 = len(config["yolo"]["anchors"][0]) * (5 + config["yolo"]["classes"])

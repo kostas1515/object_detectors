@@ -2,6 +2,7 @@ master_addr: localhost
 master_port: ${now:%H%M%S}
 backend: "nccl"
 gpus: 1
+rank: 0
 apex_opt: 'O2'
 only_test: False
 metrics: 'val_loss'
@@ -28,6 +29,8 @@ hydra:
     subdir: ./
   launcher:
     n_jobs: ${gpus}
+    backend: threading
+    prefer: threads
 
 
 
