@@ -1,6 +1,8 @@
 import sys
 from apex import amp
 import numpy as np
+import time
+import torch
 def train_one_epoch(dataloader,model,optimizer,yolo_loss,rank):
     model.train()
     batch_loss=0
@@ -12,11 +14,10 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,rank):
         batch_loss=0
         targets = [{k: v.to('cuda') for k, v in t.items()} for t in targets]
         out=model(imgs.cuda())
-
         outcome=yolo_loss(out,targets)
         batch_loss= outcome[0]
         metrics = metrics + np.array(outcome[1:])
-
+        
         with amp.scale_loss(batch_loss, optimizer) as scaled_loss:
             scaled_loss.backward()
         optimizer.step()
