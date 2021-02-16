@@ -26,7 +26,10 @@ def save_model(model,optimizer,mAP,epoch,name):
 
 def get_model(cfg):
     model = YoloHead(cfg)
-    # model.load_state_dict(torch.load('weights/yolov3_orig.pth'))
+    if cfg.pretrained_head is True and cfg.dataset.dset_name=='coco':
+        owd = os.getenv('owd')
+        path= os.path.join(owd,'weights/yolov3_orig.pth')
+        model.load_state_dict(torch.load(path))
     model=model.cuda()
     epoch=0
     mAP=0

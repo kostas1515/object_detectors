@@ -5,8 +5,10 @@ gpus: 1
 rank: 0
 apex_opt: 'O2'
 only_test: False
-metrics: 'val_loss'
+metric: 'val_loss'
 job_id: ${hydra:job.num}
+pretrained_head: False
+minimize: True
 
 defaults:
   - dataset: coco

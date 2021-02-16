@@ -5,7 +5,8 @@ gpus: 1
 rank: 1
 apex_opt: 'O0'
 only_test: False
-metrics: 'val_loss'
+metric: 'val_loss'
+pretrained_head: False
 
 defaults:
   - dataset: coco

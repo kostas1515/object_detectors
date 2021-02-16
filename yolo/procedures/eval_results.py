@@ -11,7 +11,7 @@ import itertools
 def save_results(results,rank):
     path='bbox_results/temp_res'
     if not os.path.exists(path):
-        os.makedirs(path,)
+        os.makedirs(path)
 
     temp_name=os.path.join(path,'{}.json'.format(rank))
     with open(temp_name,'wb') as f:
