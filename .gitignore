@@ -7,3 +7,4 @@ yolo/*.zip
 *.pyc
 *.tar
 *.pth
+yolo/batch_files/*
