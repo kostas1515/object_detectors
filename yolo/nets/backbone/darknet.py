@@ -83,25 +83,25 @@ class DarkNet(nn.Module):
 
         return out3, out4, out5
 
-def darknet21(pretrained,device, **kwargs):
+def darknet21(pretrained, **kwargs):
     """Constructs a darknet-21 model.
     """
     model = DarkNet([1, 1, 2, 2, 1])
     if pretrained:
         if isinstance(pretrained, str):
-            model.load_state_dict(torch.load(pretrained,map_location="cuda:{}".format(device)))
+            model.load_state_dict(torch.load(pretrained,map_location="cpu"))
         else:
             raise Exception("darknet request a pretrained path. got [{}]".format(pretrained))
     return model
 
-def darknet53(pretrained,device, **kwargs):
+def darknet53(pretrained, **kwargs):
     """Constructs a darknet-53 model.
     """
 
     model = DarkNet([1, 2, 8, 8, 4])
     if pretrained:
         if isinstance(pretrained, str):
-            model.load_state_dict(torch.load(pretrained))
+            model.load_state_dict(torch.load(pretrained,map_location="cpu"))
         else:
             raise Exception("darknet request a pretrained path. got [{}]".format(pretrained))
     return model

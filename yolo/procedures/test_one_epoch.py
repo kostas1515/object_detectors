@@ -6,27 +6,16 @@ import itertools
 def test_one_epoch(dataloader,model,yolo_loss,confidence=0.1,iou_threshold=0.5):
     inp_dim=yolo_loss.img_size
     model.eval()
-    device = torch.device('cuda')
     results = []
     dset_name = dataloader.dset_name
-    torch.backends.cudnn.benchmark = True
+#     torch.backends.cudnn.benchmark = True
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(dataloader):
             # measure data loading time
             
-            images = images.to(device)
-            targets2=[]
-            for t in targets:
-                dd={}
-                for k, v in t.items():
-                    if(k!='img_size'):
-                        dd[k]=v.to(device)
-                    else:
-                        dd[k]=v
-                targets2.append(dd)
-
-    #         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-            targets=targets2
+            images=images.to('cuda',non_blocking=True)
+            targets = [{k: v.to('cuda',non_blocking=True) for k, v in t.items()} for t in targets]
+            
             out=model(images)
             predictions=yolo_loss(out)
 

@@ -28,10 +28,8 @@ def eval_results(epoch,dset_name,validation_path):
             temp_name = os.path.join(directory, filename)
             with open(temp_name, 'rb') as f:
                 results=list(itertools.chain(results, pickle.load(f)))
-    try:
-        cwd=hydra.utils.get_original_cwd()
-    except ValueError:
-        cwd=''
+                
+    cwd = os.getenv('owd')  
     validation_path=os.path.join(cwd,validation_path)
     
     if not os.path.exists(f'bbox_results/{dset_name}/'):

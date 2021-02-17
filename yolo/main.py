@@ -37,20 +37,19 @@ def cleanup():
 @hydra.main(config_path="hydra",config_name="config")
 def main(cfg: DictConfig) -> None:
     os.environ['owd'] = hydra.utils.get_original_cwd()
-    mp.spawn(pipeline, nprocs=cfg.gpus, args=(cfg,),join=True)
+    mp.spawn(pipeline, nprocs=cfg.gpus, args=(cfg,))
 
 def pipeline(rank,cfg):
-    os.environ["CUDA_VISIBLE_DEVICES"]=str(rank)
-    try:
-        setup(rank, cfg.gpus)
-    except RuntimeError:
-        pass
-    
-    torch.cuda.set_device(0)
+    setup(rank, cfg.gpus)
+    torch.cuda.set_device(rank)
+    torch.manual_seed(0)
+    cfg.rank=rank
     dset_config=cfg['dataset']
     mAP_best=0
     mAP = 0
     last_epoch=0
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True
 
     #model,optimizer
     model,optimizer,mAP_best,last_epoch=get_model(cfg)
@@ -59,13 +58,15 @@ def pipeline(rank,cfg):
     print(len(train_loader.dataset))       
     
     #criterion
-    criterion = YOLOForw(cfg['yolo'])
+    criterion = YOLOForw(cfg['yolo']).cuda()
 
-    epochs=60
+    epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
+        if i>30:
+            cfg.metric =='mAP'
         train_one_epoch(train_loader,model,optimizer,criterion,rank)
-        if cfg.metrics =='mAP':
+        if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion)
             save_results(results,rank)
             dist.barrier()

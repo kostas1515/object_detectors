@@ -29,8 +29,8 @@ def get_model(cfg):
     if cfg.pretrained_head is True and cfg.dataset.dset_name=='coco':
         owd = os.getenv('owd')
         path= os.path.join(owd,'weights/yolov3_orig.pth')
-        model.load_state_dict(torch.load(path))
-    model=model.cuda()
+        model.load_state_dict(torch.load(path,map_location="cpu"))
+    model=model.cuda(cfg.rank)
     epoch=0
     mAP=0
     optimizer=None

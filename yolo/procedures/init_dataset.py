@@ -52,8 +52,8 @@ def get_dataloaders(cfg):
                                                                          Class1_0()]))     
         
     try:
-        train_sampler = DistributedSampler(ds_train)
-        test_sampler = DistributedSampler(ds_val)
+        train_sampler = DistributedSampler(ds_train,num_replicas=cfg.gpus,rank=cfg.rank)
+        test_sampler = DistributedSampler(ds_val,num_replicas=cfg.gpus,rank=cfg.rank)
 
         train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
                                   shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,

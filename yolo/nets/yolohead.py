@@ -14,12 +14,11 @@ class YoloHead(nn.Module):
         self.config = config
         self.training = is_training
         self.model_params = config["backbone"]
-        device = config.rank
         cwd= os.getenv('owd')
         #  backbone
         _backbone_fn = backbone_fn[self.model_params["backbone_name"]]
         backbone_path=os.path.join(cwd,self.model_params["backbone_pretrained"])
-        self.backbone = _backbone_fn(backbone_path,device)
+        self.backbone = _backbone_fn(backbone_path)
         _out_filters = self.backbone.layers_out_filters
         #  embedding0
         final_out_filter0 = len(config["yolo"]["anchors"][0]) * (5 + config["yolo"]["classes"])
