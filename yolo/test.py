@@ -9,8 +9,8 @@ from procedures.init_dataset import get_dataloaders
 from procedures.train_one_epoch import train_one_epoch
 from procedures.valid_one_epoch import valid_one_epoch
 from procedures.test_one_epoch import test_one_epoch
-from procedures.eval_results import eval_results,save_results
-from procedures.initialize import get_model
+from procedures.eval_results import eval_results,save_partial_results
+from procedures.initialize import get_model,load_checkpoint
 import logging
 import time
 
@@ -19,7 +19,6 @@ log = logging.getLogger(__name__)
 @hydra.main(config_path="hydra",config_name="hyperopt")
 def main(cfg: DictConfig) -> None:
     os.environ['owd'] = hydra.utils.get_original_cwd()
-
     torch.cuda.set_device(cfg.job_id % cfg.gpus)
     dset_config=cfg['dataset']
     mAP = 0
@@ -29,6 +28,9 @@ def main(cfg: DictConfig) -> None:
 
     #model,optimizer
     model,optimizer,_,last_epoch=get_model(cfg)
+    #checkpoint
+    if cfg.resume is True:
+        metrics,last_epoch = load_checkpoint(model,optimizer,cfg)
     #dataloaders
     train_loader,test_loader = get_dataloaders(cfg)           
 
@@ -42,25 +44,26 @@ def main(cfg: DictConfig) -> None:
 
         if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion)
-            save_results(results,rank)
+            save_partial_results(results,rank)
             mAP=eval_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
-            log.info(f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh}, \
-                lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},\
-                lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},\
-                lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, mAP={mAP}")
+            msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
+                    f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
+                    f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
+                    f"lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, mAP={mAP}"
+            log.info(msg)
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
             return mAP
         else:
-            batch_loss = valid_one_epoch(test_loader,model,criterion,rank)
+            batch_loss = valid_one_epoch(test_loader,model,criterion)
             if torch.isnan(batch_loss):
-                batch_loss = torch.tensor([1e6],device='cuda')
+                batch_loss = torch.tensor([1e8],device='cuda')
+            valid_loss = -batch_loss.item()
+            msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
+                    f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
+                    f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
+                    f"lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, val_loss={valid_loss}"
+            log.info(msg)
 
-            log.info(f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh}, \
-                lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},\
-                lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},\
-                lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, valid_loss={batch_loss.item()}")
-
-            valid_loss = batch_loss.item()
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
 
             return valid_loss

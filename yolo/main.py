@@ -10,12 +10,15 @@ from procedures.init_dataset import get_dataloaders
 from procedures.train_one_epoch import train_one_epoch
 from procedures.valid_one_epoch import valid_one_epoch
 from procedures.test_one_epoch import test_one_epoch
-from procedures.eval_results import eval_results,save_results
-from procedures.initialize import save_model,get_model
+from procedures.eval_results import eval_results,save_partial_results
+from procedures.initialize import save_model,get_model,load_checkpoint
 import logging
 import torch.multiprocessing as mp
+import pandas as pd
+from utilities import helper
 
-log = logging.getLogger(__name__)
+
+
 
 def setup(rank, world_size):
     """Initializes distributed process group.
@@ -37,22 +40,35 @@ def cleanup():
 @hydra.main(config_path="hydra",config_name="config")
 def main(cfg: DictConfig) -> None:
     os.environ['owd'] = hydra.utils.get_original_cwd()
-    mp.spawn(pipeline, nprocs=cfg.gpus, args=(cfg,))
+    mp.spawn(pipeline, nprocs=cfg.gpus, args=(cfg,), join=True)
+
+def get_logger():
+    log = logging.getLogger(__name__)
+    log.setLevel(logging.DEBUG)
+    fh = logging.FileHandler('main.log','a')
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+    return log
 
 def pipeline(rank,cfg):
     setup(rank, cfg.gpus)
     torch.cuda.set_device(rank)
-    torch.manual_seed(0)
     cfg.rank=rank
     dset_config=cfg['dataset']
-    mAP_best=0
-    mAP = 0
-    last_epoch=0
+    mAP_best = 0
+    val_loss_best = -1000000
     torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.benchmark = True
+    if rank == 0:
+        log=get_logger()
 
     #model,optimizer
-    model,optimizer,mAP_best,last_epoch=get_model(cfg)
+    model,optimizer,metrics,last_epoch=get_model(cfg)
+    #checkpoint
+    if cfg.resume is True:
+        metrics,last_epoch = load_checkpoint(model,optimizer,cfg)
+        
     #dataloaders
     train_loader,test_loader = get_dataloaders(cfg)
     print(len(train_loader.dataset))       
@@ -63,27 +79,38 @@ def pipeline(rank,cfg):
     epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
-        if i>30:
-            cfg.metric =='mAP'
-        train_one_epoch(train_loader,model,optimizer,criterion,rank)
+        avg_losses = train_one_epoch(train_loader,model,optimizer,criterion,rank)
+        dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
+        avg_losses = avg_losses.cpu().numpy()
         if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion)
-            save_results(results,rank)
+            save_partial_results(results,rank)
             dist.barrier()
             if rank==0:
                 mAP=eval_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
                 print(f'map is {mAP}')
-                save_model(model,optimizer,mAP,i+last_epoch,'last')
+                metrics['mAP']=mAP
+                metrics['val_loss']=-1000000
+                save_model(model,optimizer,metrics,i+last_epoch,'last')
                 if mAP>mAP_best:
-                    save_model(model,optimizer,mAP,i,'best')
+                    save_model(model,optimizer,metrics,i+last_epoch,'best')
                     mAP_best=mAP
         else:
-            batch_loss = valid_one_epoch(test_loader,model,criterion,rank)
+            batch_loss = - valid_one_epoch(test_loader,model,criterion)
             dist.all_reduce(batch_loss, op=torch.distributed.ReduceOp.SUM, async_op=False)
-            batch_loss = batch_loss / len(test_loader.dataset)
             if rank==0:
                 print(f'batch_loss is {batch_loss}')
-                save_model(model,optimizer,mAP,i+last_epoch,'last')
+                metrics['mAP']=0
+                metrics['val_loss']=batch_loss.item()
+                save_model(model,optimizer,metrics,i+last_epoch,'last')
+                if batch_loss>val_loss_best:
+                    save_model(model,optimizer,metrics,i+last_epoch,'best')
+                    val_loss_best=batch_loss
+        if rank==0:
+            msg= f'Epoch:{i+last_epoch},Loss is:{avg_losses.sum()}, xy is:{avg_losses[0]},wh is:{avg_losses[1]},iou is:{avg_losses[2]},',f'pos_conf is:{avg_losses[3]}, neg_conf is:{avg_losses[4]},class is:{avg_losses[5]}, mAP is:{metrics["mAP"]}, val_loss is: {metrics["val_loss"]}'
+            log.info(msg)
+            helper.write_progress_stats(avg_losses,metrics,i+last_epoch)
+
     cleanup()
 
 if __name__=='__main__':

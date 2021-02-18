@@ -7,8 +7,10 @@ apex_opt: 'O2'
 only_test: False
 metric: 'val_loss'
 job_id: ${hydra:job.num}
+batch_norm_sync: False
+minimize: False
+resume: False
 pretrained_head: False
-minimize: True
 
 defaults:
   - dataset: coco

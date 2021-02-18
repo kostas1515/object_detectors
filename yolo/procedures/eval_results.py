@@ -8,7 +8,7 @@ import pickle
 import itertools
 
 
-def save_results(results,rank):
+def save_partial_results(results,rank):
     path='bbox_results/temp_res'
     if not os.path.exists(path):
         os.makedirs(path)
@@ -40,14 +40,10 @@ def eval_results(epoch,dset_name,validation_path):
 
     if dset_name=='coco':
         cocoGt=COCO(validation_path)
-
-        
         cocoDt=cocoGt.loadRes(resFile)
-        imgIds=sorted(cocoGt.getImgIds())
         cocoDt.loadAnns()
 
-
-        # # running evaluation
+        #  running evaluation
         cocoEval = COCOeval(cocoGt,cocoDt,'bbox')
         cocoEval.evaluate()
         cocoEval.accumulate()

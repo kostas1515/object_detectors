@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-def valid_one_epoch(dataloader,model,yolo_loss,rank):
+def valid_one_epoch(dataloader,model,yolo_loss):
     model.eval()
     batch_loss=torch.zeros(1).cuda()
     torch.backends.cudnn.benchmark = True
@@ -18,8 +18,5 @@ def valid_one_epoch(dataloader,model,yolo_loss,rank):
             counter = counter + 1
             outcome=yolo_loss(out,targets)
             batch_loss= batch_loss + outcome[0]
-            
-            if (rank == 0) &((counter % 10) ==0):
-                print(outcome[0])
 
         return batch_loss

@@ -9,45 +9,58 @@ from apex import amp
 import time
 
 
-def save_model(model,optimizer,mAP,epoch,name):
-
+def save_model(model,optimizer,metrics,epoch,name):
     if not os.path.exists('checkpoints/'):
         os.makedirs('checkpoints/')
     
     checkpoint=f'checkpoints/{name}.tar'
 
     torch.save({'epoch': epoch,
-                'model_state_dict': model.module.state_dict() if type(model) is DDP else model.state_dict(),
+                'model_state_dict': model.module.state_dict() if type(model) is not DDP else model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'optimizer_name':optimizer.name,
-                'mAP': mAP
+                'metrics': metrics
                 }, checkpoint)
 
 
 def get_model(cfg):
     model = YoloHead(cfg)
-    if cfg.pretrained_head is True and cfg.dataset.dset_name=='coco':
-        owd = os.getenv('owd')
-        path= os.path.join(owd,'weights/yolov3_orig.pth')
-        model.load_state_dict(torch.load(path,map_location="cpu"))
-    model=model.cuda(cfg.rank)
-    epoch=0
-    mAP=0
-    optimizer=None
+    model = model.cuda(cfg.rank)
+    if cfg.batch_norm_sync is True:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    epoch = 0
+    metrics={'mAP':None,'val_loss':None}
+    optimizer = None
 
-    if not os.path.exists('checkpoints/'):
-        if cfg['optimizer']['name'] == 'sgd':
-            optimizer=optim.SGD(model.parameters(), lr=cfg['optimizer']['lr'], momentum=cfg['optimizer']['momentum'],weight_decay=cfg['optimizer']['weight_decay'])
-            
-        elif cfg['optimizer']['name'] == 'adam':
-            optimizer=optim.Adam(model.parameters(), lr=cfg['optimizer']['lr'],weight_decay=cfg['optimizer']['weight_decay'])
-            
-        optimizer_name=cfg['optimizer']['name']
-    else:
+    if cfg['optimizer']['name'] == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=cfg['optimizer']['lr'], momentum=cfg['optimizer']['momentum'],weight_decay=cfg['optimizer']['weight_decay'])
+        
+    elif cfg['optimizer']['name'] == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=cfg['optimizer']['lr'],weight_decay=cfg['optimizer']['weight_decay'])
+        
+    
+    model, optimizer = amp.initialize(model,optimizer, 
+                                      opt_level=cfg.apex_opt)                                  
+    optimizer.name = cfg['optimizer']['name']
+    try:
+        model = DDP(model)
+    except AssertionError:
+        print("something went wrong with DDP, use standart model")
+        pass
+
+    return model,optimizer,metrics,epoch
+
+
+
+def load_checkpoint(model,optimizer,cfg):
+    exp_name=cfg.experiment.name
+    map_location="cuda:{}".format(cfg.rank)
+    if os.path.exists(os.path.join('../',exp_name,'checkpoints/')):
         cp_name=cfg['experiment']['cp']
-        checkpoint = torch.load(f'checkpoints/{cp_name}.tar')
+        checkpoint = torch.load(f'checkpoints/{cp_name}.tar',map_location=map_location)
         try:
             model.load_state_dict(checkpoint['model_state_dict'])
+            print(f'checkpoint loaded from:{cfg.experiment.name}')
         except RuntimeError:
             new_state_dict = OrderedDict()
             for k, v in checkpoint['model_state_dict'].items():
@@ -55,28 +68,23 @@ def get_model(cfg):
                 new_state_dict[name]=v
             model.load_state_dict(new_state_dict)
         optimizer_name=checkpoint['optimizer_name']
-        epoch=checkpoint['epoch']
-        mAP=checkpoint['mAP']
+        epoch=checkpoint['epoch'] + 1
+        metrics=checkpoint['metrics']
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        optimizer.name=optimizer_name
+        return metrics,epoch
+    elif cfg.pretrained_head is True:
+        print('pretrained loaded')
+        owd = os.getenv('owd')
+        try:
+            path= os.path.join(owd,'weights/official_yolov3_weights_pytorch.pth')
+            checkpoint=torch.load(path,map_location=map_location)
+            model.load_state_dict(checkpoint)
+        except RuntimeError:
+            path= os.path.join(owd,'weights/yolov3_orig.pth')
+            checkpoint=torch.load(path,map_location=map_location)
+            model.load_state_dict(checkpoint)
+    else:
+        print('checkpoint not found, returning random model')
 
-        if cfg['experiment']['override_optimizer'] is False:
-            if optimizer_name=='sgd':
-                optimizer=optim.SGD(model.parameters(), lr=0)
-            elif optimizer_name == 'adam':
-                optimizer=optim.Adam(model.parameters(), lr=0)
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        else:
-            if cfg['optimizer']['name'] == 'sgd':
-                optimizer=optim.SGD(model.parameters(), lr=cfg['optimizer']['lr'], momentum=cfg['optimizer']['momentum'],weight_decay=cfg['optimizer']['weight_decay'])
-            
-            elif cfg['optimizer']['name'] == 'adam':
-                optimizer=optim.Adam(model.parameters(), lr=cfg['optimizer']['lr'],weight_decay=cfg['optimizer']['weight_decay'])
-
-    model, optimizer = amp.initialize(model,optimizer, 
-                                      opt_level=cfg.apex_opt)
-    optimizer.name = optimizer_name
-
-    try:
-        model = DDP(model)
-    except AssertionError:
-        pass
-    return model,optimizer,mAP,epoch
+    return {'mAP':None,'val_loss':None}, 0

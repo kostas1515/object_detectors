@@ -1,8 +1,9 @@
 import torch
 import numpy as np
 import math
-
-
+import os
+import pandas as pd
+from datetime import datetime
 
 def coco80_to_coco91_class(label):
     x= [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34,
@@ -65,6 +66,31 @@ def convert2onehot(labels):
     onehot.zero_()
     onehot.scatter_(1, labels.unsqueeze(1), 1)
     return onehot.cuda()
+
+def write_progress_stats(avg_losses,metrics,epoch):
+    progress_path='progress'
+    file_name=os.path.join(progress_path,'progress.csv')
+    progress = {"Timestamp":datetime.now(),
+                "Epoch":epoch,
+                "Loss":avg_losses.sum(),
+                "xy":avg_losses[0],
+                "wh":avg_losses[1],
+                "iou":avg_losses[2],
+                "pos_conf":avg_losses[3],
+                "neg_conf":avg_losses[4],
+                "class":avg_losses[5],
+                "mAP":metrics['mAP'],
+                "val_loss": metrics['val_loss']}
+    df= pd.DataFrame([progress])
+    if os.path.exists(progress_path):
+        df0 = pd.read_csv(file_name)
+        pd.concat([df0,df],ignore_index=True).to_csv(file_name,index=False)
+    else:
+        os.mkdir(progress_path)
+        df.to_csv(file_name,index=False)
+
+    
+
 
 def get_progress_stats(true_pred,no_obj,iou_list,targets):
     '''

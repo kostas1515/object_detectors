@@ -2,10 +2,12 @@ master_addr: localhost
 master_port: ${now:%H%M%S}
 backend: "nccl"
 gpus: 1
-rank: 1
+rank: 0
 apex_opt: 'O0'
 only_test: False
 metric: 'val_loss'
+batch_norm_sync: False
+resume: False
 pretrained_head: False
 
 defaults:
