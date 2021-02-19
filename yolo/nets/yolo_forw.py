@@ -25,14 +25,14 @@ class YOLOForw(nn.Module):
         self.lambda_conf = cfg['lambda_conf']
         self.lambda_no_conf = cfg['lambda_no_conf']
         self.lambda_cls = cfg['lambda_cls']
-
+        self.reduction = cfg['reduction']
 
         self.device= torch.device('cuda')
         self.iou_type = cfg['iou_type']
-        self.wh_loss = nn.MSELoss()
-        self.xy_loss = nn.BCEWithLogitsLoss()
-        self.conf_loss = nn.BCEWithLogitsLoss()
-        self.class_loss = nn.BCEWithLogitsLoss()
+        self.wh_loss = nn.MSELoss(reduction = self.reduction)
+        self.xy_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
+        self.conf_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
+        self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
 
     def forward(self, input, targets=None):
         raw_pred=[]
@@ -71,15 +71,30 @@ class YOLOForw(nn.Module):
             tgt,tcls,obj_mask, noobj_mask = self.get_target(targets, cxypwh, inw_inh, ignore_threshold=self.ignore_threshold)
             final=torch.cat([raw_pred[k,i] for k,i in enumerate(obj_mask)])
             true_pred,gt = self.transform_pred(final,tgt,cxypwh,inw_inh,obj_mask)
-            iou_loss = self.lambda_iou *  (1 - helper.bbox_iou(true_pred,gt,self.iou_type)).mean()
+            iou = helper.bbox_iou(true_pred,gt,self.iou_type)
+            if self.reduction =="sum":
+                iou_loss = self.lambda_iou *  (1 - iou).sum()
+            else:
+                iou_loss = self.lambda_iou *  (1 - iou).mean()
             loss_xy = self.lambda_xy * self.xy_loss(final[:,:2],tgt[:,:2])
             loss_wh = self.lambda_wh * self.wh_loss(final[:,2:4],tgt[:,2:4])
             pos_conf_loss = self.lambda_conf * self.conf_loss(final[:,4],torch.ones(final.shape[0],device=self.device))
-            neg_conf_loss = self.lambda_no_conf * self.conf_loss(raw_pred[noobj_mask],torch.zeros(raw_pred[noobj_mask].shape,device=self.device))
+            no_obj = raw_pred[noobj_mask]
+            neg_conf_loss = self.lambda_no_conf * self.conf_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
             class_loss = self.lambda_cls * self.class_loss(final[:,5:],tcls)
             loss = loss_xy + loss_wh + iou_loss + pos_conf_loss + neg_conf_loss + class_loss
 
-            return loss,loss_xy.detach(),loss_wh.detach(),iou_loss.detach(),pos_conf_loss.detach(),neg_conf_loss.detach(),class_loss.detach()
+            #stats
+            stats=self.get_stats(true_pred,iou,no_obj,tcls)
+            sub_losses=torch.stack([loss_xy.detach().clone(),loss_wh.detach().clone(),
+                                    iou_loss.detach().clone(),pos_conf_loss.detach().clone(),
+                                    neg_conf_loss.detach().clone(),class_loss.detach().clone()])
+                                    
+            if self.reduction =="sum":
+                loss = loss / gt.shape[0]
+                sub_losses= sub_losses / gt.shape[0]
+                 
+            return loss,sub_losses,stats
         else:
             strides = (self.img_size / inw_inh).unsqueeze(1)
             inw_inh = inw_inh.unsqueeze(1)
@@ -138,3 +153,20 @@ class YOLOForw(nn.Module):
         gt = torch.cat([xy,wh],axis=1)
 
         return true_pred,gt
+
+    def get_stats(self,tp,i,nobj,gt):
+
+        labels = gt.clone().detach().bool()
+        no_obj = nobj.clone().detach()
+        iou = i.clone().detach()
+        true_pred = tp.clone().detach()
+        no_obj_conf = torch.sigmoid(no_obj).mean()
+        avg_iou = iou.mean()
+        pos_conf = true_pred[:,4].mean()
+
+        pos_class=true_pred[:,5:][labels].mean()
+        neg_class=true_pred[:,5:][~labels].mean()
+        stats = torch.stack([avg_iou,pos_conf,no_obj_conf,pos_class,neg_class])
+        
+        
+        return stats

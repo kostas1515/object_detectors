@@ -79,9 +79,11 @@ def pipeline(rank,cfg):
     epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
-        avg_losses = train_one_epoch(train_loader,model,optimizer,criterion,rank)
+        avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,rank)
         dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
-        avg_losses = avg_losses.cpu().numpy()
+        dist.all_reduce(avg_stats, op=torch.distributed.ReduceOp.SUM, async_op=False)
+        avg_losses = avg_losses.cpu().numpy() 
+        avg_stats = avg_stats.cpu().numpy() / cfg.gpus
         if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion)
             save_partial_results(results,rank)
@@ -107,9 +109,11 @@ def pipeline(rank,cfg):
                     save_model(model,optimizer,metrics,i+last_epoch,'best')
                     val_loss_best=batch_loss
         if rank==0:
-            msg= f'Epoch:{i+last_epoch},Loss is:{avg_losses.sum()}, xy is:{avg_losses[0]},wh is:{avg_losses[1]},iou is:{avg_losses[2]},',f'pos_conf is:{avg_losses[3]}, neg_conf is:{avg_losses[4]},class is:{avg_losses[5]}, mAP is:{metrics["mAP"]}, val_loss is: {metrics["val_loss"]}'
+            msg= f'Epoch:{i+last_epoch},Loss is:{avg_losses.sum()}, xy is:{avg_losses[0]},wh is:{avg_losses[1]},iou is:{avg_losses[2]},',f'pos_conf is:{avg_losses[3]}, neg_conf is:{avg_losses[4]},class is:{avg_losses[5]}, mAP is:{metrics["mAP"]}, val_loss is: {metrics["val_loss"]}' 
+            stats_msg = {'iou':avg_stats[0],'pos_conf':avg_stats[1],'neg_conf':avg_stats[2],'pos_class':avg_stats[3],'neg_class':avg_stats[4]}
             log.info(msg)
-            helper.write_progress_stats(avg_losses,metrics,i+last_epoch)
+            log.info(stats_msg)
+            helper.write_progress_stats(avg_losses,avg_stats,metrics,i+last_epoch)
 
     cleanup()
 

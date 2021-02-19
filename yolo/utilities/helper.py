@@ -67,7 +67,7 @@ def convert2onehot(labels):
     onehot.scatter_(1, labels.unsqueeze(1), 1)
     return onehot.cuda()
 
-def write_progress_stats(avg_losses,metrics,epoch):
+def write_progress_stats(avg_losses,avg_stats,metrics,epoch):
     progress_path='progress'
     file_name=os.path.join(progress_path,'progress.csv')
     progress = {"Timestamp":datetime.now(),
@@ -75,12 +75,18 @@ def write_progress_stats(avg_losses,metrics,epoch):
                 "Loss":avg_losses.sum(),
                 "xy":avg_losses[0],
                 "wh":avg_losses[1],
-                "iou":avg_losses[2],
-                "pos_conf":avg_losses[3],
-                "neg_conf":avg_losses[4],
-                "class":avg_losses[5],
+                "iou_loss":avg_losses[2],
+                "pos_conf_loss":avg_losses[3],
+                "neg_conf_loss":avg_losses[4],
+                "class_loss":avg_losses[5],
+                'iou':avg_stats[0],
+                'pos_conf':avg_stats[1],
+                'neg_conf':avg_stats[2],
+                'pos_class':avg_stats[3],
+                'neg_class':avg_stats[4],
                 "mAP":metrics['mAP'],
                 "val_loss": metrics['val_loss']}
+
     df= pd.DataFrame([progress])
     if os.path.exists(progress_path):
         df0 = pd.read_csv(file_name)
