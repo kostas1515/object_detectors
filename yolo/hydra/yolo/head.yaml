@@ -10,6 +10,8 @@ iou_type : 1
 lambda_xy : 2.5
 lambda_wh : 2.5
 lambda_conf : 1.0
-lambda_no_conf: 0.5
+lambda_no_conf: 0.1
 lambda_cls : 1.0
+alpha: 0.5
+gamma: 1
 reduction: 'sum'

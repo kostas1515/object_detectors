@@ -9,6 +9,9 @@ metric: 'val_loss'
 batch_norm_sync: False
 resume: False
 pretrained_head: False
+verbose: False
+track_epoch: False
+freq: 10
 
 defaults:
   - dataset: coco

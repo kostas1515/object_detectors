@@ -1,7 +1,5 @@
 import hydra
-from omegaconf import DictConfig, OmegaConf
-from torch import optim
-import procedures
+from omegaconf import DictConfig
 import torch
 import os
 import torch.distributed as dist
@@ -14,8 +12,8 @@ from procedures.eval_results import eval_results,save_partial_results
 from procedures.initialize import save_model,get_model,load_checkpoint
 import logging
 import torch.multiprocessing as mp
-import pandas as pd
 from utilities import helper
+from torch.utils.tensorboard import SummaryWriter
 
 
 
@@ -62,6 +60,8 @@ def pipeline(rank,cfg):
     torch.backends.cudnn.benchmark = True
     if rank == 0:
         log=get_logger()
+        writer = SummaryWriter('tensorboard')
+
 
     #model,optimizer
     model,optimizer,metrics,last_epoch=get_model(cfg)
@@ -70,8 +70,7 @@ def pipeline(rank,cfg):
         metrics,last_epoch = load_checkpoint(model,optimizer,cfg)
         
     #dataloaders
-    train_loader,test_loader = get_dataloaders(cfg)
-    print(len(train_loader.dataset))       
+    train_loader,test_loader = get_dataloaders(cfg)       
     
     #criterion
     criterion = YOLOForw(cfg['yolo']).cuda()
@@ -79,7 +78,7 @@ def pipeline(rank,cfg):
     epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
-        avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,rank)
+        avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
         dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
         dist.all_reduce(avg_stats, op=torch.distributed.ReduceOp.SUM, async_op=False)
         avg_losses = avg_losses.cpu().numpy() 
@@ -114,6 +113,20 @@ def pipeline(rank,cfg):
             log.info(msg)
             log.info(stats_msg)
             helper.write_progress_stats(avg_losses,avg_stats,metrics,i+last_epoch)
+            writer.add_scalar('Avg Loss/train', avg_losses.sum(),i+last_epoch)
+            writer.add_scalar('XY Loss/train', avg_losses[0],i+last_epoch)
+            writer.add_scalar('WH Loss/train', avg_losses[1],i+last_epoch)
+            writer.add_scalar('IOU Loss/train', avg_losses[2],i+last_epoch)
+            writer.add_scalar('Pos_Conf Loss/train', avg_losses[3],i+last_epoch)
+            writer.add_scalar('Neg_Conf Loss/train', avg_losses[4],i+last_epoch)
+            writer.add_scalar('Class Loss/train', avg_losses[5],i+last_epoch)
+            writer.add_scalar('IOU/train', avg_stats[0],i+last_epoch)
+            writer.add_scalar('Pos Conf/train', avg_stats[1],i+last_epoch)
+            writer.add_scalar('Neg Conf/train', avg_stats[2],i+last_epoch)
+            writer.add_scalar('Pos Class/train', avg_stats[3],i+last_epoch)
+            writer.add_scalar('Neg Class/train', avg_stats[4],i+last_epoch)
+            writer.add_scalar('mAP/valid',metrics['mAP'],i+last_epoch)
+            writer.add_scalar('Valid Loss/valid', metrics['val_loss'],i+last_epoch)
 
     cleanup()
 

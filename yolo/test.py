@@ -40,7 +40,7 @@ def main(cfg: DictConfig) -> None:
     batch_loss = torch.zeros(1)
     for i in range(epochs):
         if cfg.only_test is False:
-            train_one_epoch(train_loader,model,optimizer,criterion,rank)
+            train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
 
         if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion)

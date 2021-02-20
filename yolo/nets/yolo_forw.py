@@ -30,8 +30,9 @@ class YOLOForw(nn.Module):
         self.device= torch.device('cuda')
         self.iou_type = cfg['iou_type']
         self.wh_loss = nn.MSELoss(reduction = self.reduction)
-        self.xy_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
+        self.xy_loss = nn.MSELoss(reduction = self.reduction)
         self.conf_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
+        self.conf_loss = custom.FocalLoss(self.conf_loss,gamma=cfg.gamma,alpha=cfg.alpha)
         self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
 
     def forward(self, input, targets=None):
@@ -76,7 +77,8 @@ class YOLOForw(nn.Module):
                 iou_loss = self.lambda_iou *  (1 - iou).sum()
             else:
                 iou_loss = self.lambda_iou *  (1 - iou).mean()
-            loss_xy = self.lambda_xy * self.xy_loss(final[:,:2],tgt[:,:2])
+            
+            loss_xy = self.lambda_xy * self.xy_loss(torch.sigmoid(final[:,:2]),tgt[:,:2])
             loss_wh = self.lambda_wh * self.wh_loss(final[:,2:4],tgt[:,2:4])
             pos_conf_loss = self.lambda_conf * self.conf_loss(final[:,4],torch.ones(final.shape[0],device=self.device))
             no_obj = raw_pred[noobj_mask]
