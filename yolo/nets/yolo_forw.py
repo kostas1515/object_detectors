@@ -128,8 +128,8 @@ class YOLOForw(nn.Module):
             gh=torch.log(bbox[:,3]/gt[:,3] + 1e-16)
 
             tgt.append(torch.stack([gx,gy,gw,gh],axis=1))
-            ignore_mask=((iou>ignore_threshold).sum(axis=0))>0
-            noobj_mask.append(ignore_mask)
+            not_ignore_mask=((iou<ignore_threshold).sum(axis=0))>0
+            noobj_mask.append(not_ignore_mask)
             obj_mask.append(iou_mask)
 
         noobj_mask=torch.stack(noobj_mask,axis=0)

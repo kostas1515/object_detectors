@@ -3,7 +3,7 @@ from utilities import helper
 from torchvision.ops import boxes
 import itertools
 
-def test_one_epoch(dataloader,model,yolo_loss,confidence=0.1,iou_threshold=0.5):
+def test_one_epoch(dataloader,model,yolo_loss,confidence=0.25,iou_threshold=0.5):
     inp_dim=yolo_loss.img_size
     model.eval()
     results = []

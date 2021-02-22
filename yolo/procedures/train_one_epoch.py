@@ -19,17 +19,17 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
     dataset_len = len(dataloader.dataset) / cfg.gpus
     iterations = math.ceil(epoch * (dataset_len / batch_size))
 
-    if (rank == 0):
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.DEBUG)
-        fh = logging.FileHandler('epoch.log','w+')
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-        logger.propagate = False
-        if board is True:
-            writer = SummaryWriter('track_epoch')
+    
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler('epoch.log','a')
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    logger.propagate = False
+    if (board is True) and (rank==0):
+        writer = SummaryWriter('track_epoch')
 
     # main training procedure
     model.train()
@@ -57,7 +57,8 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
 
         if (torch.isnan(batch_loss)):
             msg=f'Rank: {rank}, Iteration:{counter + iterations},Loss is:{sub_losses.sum()}, xy is:{sub_losses[0]},wh is:{sub_losses[1]},iou is:{sub_losses[2]},pos_conf is:{sub_losses[3]}, neg_conf is:{sub_losses[4]},class is:{sub_losses[5]}'
-            logger.critical(msg)
+            logger.warning(msg)
+            print(msg)
             return avg_l * 100000,avg_stats * 0
 
         with amp.scale_loss(batch_loss, optimizer) as scaled_loss:

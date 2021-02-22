@@ -47,10 +47,10 @@ ax_config:
     yolo.gamma:
       type: range
       bounds: [0.0, 3.0]
-    optimizer.momentum:
-      type: range
-      bounds: [0.7,1.0]
-    optimizer.weight_decay:
-      type: range
-      bounds: [0.0,0.001]
+    # optimizer.momentum:
+    #   type: range
+    #   bounds: [0.7,1.0]
+    # optimizer.weight_decay:
+    #   type: range
+    #   bounds: [0.0,0.001]
     
