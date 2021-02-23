@@ -6,6 +6,7 @@ import json
 import hydra
 import pickle
 import itertools
+import random
 
 
 def save_partial_results(results,rank):
@@ -19,7 +20,7 @@ def save_partial_results(results,rank):
     
 
 
-def eval_results(epoch,dset_name,validation_path):
+def eval_partial_results(epoch,dset_name,validation_path):
     results=[]
     mAP = -1
     directory = 'bbox_results/temp_res'
@@ -58,4 +59,41 @@ def eval_results(epoch,dset_name,validation_path):
         metrics=lvis_eval.get_results()
         mAP=metrics['AP']
 
+    return (mAP)
+
+
+def eval_results(results,dset_name,validation_path):
+
+    cwd = os.getenv('owd')  
+    validation_path=os.path.join(cwd,validation_path)
+
+    if not os.path.exists(f'bbox_results/{dset_name}/'):
+        os.makedirs(f'bbox_results/{dset_name}/')
+    
+    rid = (random.randint(0, 1000000))
+    json.dump(results, open(f'./bbox_results/{dset_name}/results_{rid}.json', 'w'), indent=4)
+    resFile=f'./bbox_results/{dset_name}/results_{rid}.json'
+
+    if dset_name=='coco':
+        cocoGt=COCO(validation_path)
+        cocoDt=cocoGt.loadRes(resFile)
+        cocoDt.loadAnns()
+
+        #  running evaluation
+        cocoEval = COCOeval(cocoGt,cocoDt,'bbox')
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+        cocoEval.summarize()
+
+        mAP=cocoEval.stats[0]
+
+    elif(dset_name=='lvis'):
+    
+        lvis_eval = LVISEval(validation_path, resFile, 'bbox')
+        lvis_eval.run()
+        metrics=lvis_eval.get_results()
+        mAP=metrics['AP']
+    
+    os.remove(resFile)
+    
     return (mAP)

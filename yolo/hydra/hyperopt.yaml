@@ -23,7 +23,7 @@ defaults:
   - experiment: experiment
   - hp_optim: opt1
   - hydra/sweeper: ax
-  - hydra/launcher: basic
+  - hydra/launcher: joblib
 
     
 
@@ -34,11 +34,8 @@ hydra:
   sweep:
     dir: output/${experiment.name}
     subdir: ./
-  # launcher:
-  #   n_jobs: ${gpus}
-  #   backend: threading
-  #   prefer: processes
-  #   pre_dispatch: ${gpus}
+  launcher:
+    n_jobs: ${gpus}
 
 
 

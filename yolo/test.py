@@ -19,11 +19,12 @@ log = logging.getLogger(__name__)
 @hydra.main(config_path="hydra",config_name="hyperopt")
 def main(cfg: DictConfig) -> None:
     os.environ['owd'] = hydra.utils.get_original_cwd()
-    torch.cuda.set_device(cfg.job_id % cfg.gpus)
+    pid =os.getpid()
+    torch.cuda.set_device(pid % cfg.gpus)
+    cfg.rank=pid % cfg.gpus
     dset_config=cfg['dataset']
     mAP = 0
     last_epoch=0
-    cfg.rank= (cfg.job_id % cfg.gpus)
     rank = cfg.rank
 
     #model,optimizer
@@ -40,12 +41,13 @@ def main(cfg: DictConfig) -> None:
     batch_loss = torch.zeros(1)
     for i in range(epochs):
         if cfg.only_test is False:
-            train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
+            status = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
+            if status is None:
+                return - 10000000
 
         if cfg.metric =='mAP':
-            results=test_one_epoch(test_loader,model,criterion)
-            save_partial_results(results,rank)
-            mAP=eval_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
+            results=test_one_epoch(test_loader,model,criterion,cfg)
+            mAP=eval_results(results,dset_config['dset_name'],dset_config['val_annotations'])
             msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
                     f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
                     f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
@@ -65,7 +67,6 @@ def main(cfg: DictConfig) -> None:
             log.info(msg)
 
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
-
             return valid_loss
 if __name__=='__main__':
     main()

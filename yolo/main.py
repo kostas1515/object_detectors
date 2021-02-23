@@ -8,7 +8,7 @@ from procedures.init_dataset import get_dataloaders
 from procedures.train_one_epoch import train_one_epoch
 from procedures.valid_one_epoch import valid_one_epoch
 from procedures.test_one_epoch import test_one_epoch
-from procedures.eval_results import eval_results,save_partial_results
+from procedures.eval_results import eval_partial_results,save_partial_results
 from procedures.initialize import save_model,get_model,load_checkpoint
 import logging
 import torch.multiprocessing as mp
@@ -84,11 +84,11 @@ def pipeline(rank,cfg):
         avg_losses = avg_losses.cpu().numpy() 
         avg_stats = avg_stats.cpu().numpy() / cfg.gpus
         if cfg.metric =='mAP':
-            results=test_one_epoch(test_loader,model,criterion)
+            results=test_one_epoch(test_loader,model,criterion,cfg)
             save_partial_results(results,rank)
             dist.barrier()
             if rank==0:
-                mAP=eval_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
+                mAP=eval_partial_results(i+last_epoch,dset_config['dset_name'],dset_config['val_annotations'])
                 print(f'map is {mAP}')
                 metrics['mAP']=mAP
                 metrics['val_loss']=-1000000

@@ -15,3 +15,5 @@ lambda_cls : 1.0
 alpha: 0.5
 gamma: 1
 reduction: 'sum'
+inf_confidence: 0.5
+inf_iou_threshold: 0.5
