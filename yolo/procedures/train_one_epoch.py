@@ -60,9 +60,14 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
             logger.warning(msg)
             print(msg)
             return None
-
-        with amp.scale_loss(batch_loss, optimizer) as scaled_loss:
-            scaled_loss.backward()
+        try:
+            with amp.scale_loss(batch_loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+        except ZeroDivisionError:
+            print(batch_loss)
+            logger.warning(batch_loss)
+            return None
+                
         optimizer.step()
         
         # logging displaying and tensorboard
