@@ -43,7 +43,7 @@ class YOLOForw(nn.Module):
         cxypwh =[]
         inw_inh=[]
         strides=[]
-        no_obj_conf_weights=[] # that will be [16,4,1] for the scales of yolo
+        # no_obj_conf_weights=[] # that will be [16,4,1] for the scales of yolo
         for k,input in enumerate(input):
             bs = input.size(0)
             in_h = input.size(2)
@@ -51,7 +51,7 @@ class YOLOForw(nn.Module):
             stride_h = self.img_size / in_h
             stride_w = self.img_size / in_w
             scaled_anchors = torch.tensor([(a_w / stride_w, a_h / stride_h) for a_w, a_h in self.anchors[k]],device=self.device)
-            no_obj_conf_weights.append((4**(2-k))*torch.ones([in_h*in_w*scaled_anchors.shape[0]],device=self.device))
+            # no_obj_conf_weights.append((4**(2-k))*torch.ones([in_h*in_w*scaled_anchors.shape[0]],device=self.device))
 
             prediction = input.view(bs,3,self.bbox_attrs, in_h, in_w).permute(0, 3, 4, 1, 2).contiguous()
             # prediction = prediction.permute(0,2,3,1, 4).contiguous()
@@ -72,8 +72,8 @@ class YOLOForw(nn.Module):
         inw_inh=torch.cat(inw_inh,axis=0)
         raw_pred=torch.cat(raw_pred,axis=1)
         cxypwh=torch.cat(cxypwh,axis=0)
-        no_obj_conf_weights=torch.cat(no_obj_conf_weights,axis=0)
-        no_obj_conf_weights=no_obj_conf_weights.repeat(bs,1)
+        # no_obj_conf_weights=torch.cat(no_obj_conf_weights,axis=0)
+        # no_obj_conf_weights=no_obj_conf_weights.repeat(bs,1)
 
         if targets is not None:
             tgt,tcls,obj_mask, noobj_mask = self.get_target(targets, cxypwh, inw_inh, ignore_threshold=self.ignore_threshold)
@@ -86,8 +86,8 @@ class YOLOForw(nn.Module):
             loss_wh = self.lambda_wh * self.wh_loss(final[:,2:4],tgt[:,2:4])
             pos_conf_loss = self.lambda_conf * self.pobj_loss(final[:,4],torch.ones(final.shape[0],device=self.device))
             no_obj = raw_pred[noobj_mask][:,4]
-            no_obj_conf_weights=no_obj_conf_weights[noobj_mask]
-            neg_conf_loss = self.lambda_no_conf * no_obj_conf_weights* self.nobj_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
+            # no_obj_conf_weights=no_obj_conf_weights[noobj_mask]
+            neg_conf_loss = self.lambda_no_conf * self.nobj_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
             if self.reduction =="sum":
                 iou_loss = self.lambda_iou *  (1 - iou).sum()
                 neg_conf_loss = neg_conf_loss.sum()
@@ -128,23 +128,26 @@ class YOLOForw(nn.Module):
         for b,target in enumerate(targets):
             bbox=target['bbox']
             tcls.append(torch.nn.functional.one_hot(target['category_id'],self.num_classes).float())
-            abs_box=helper.get_abs_coord(bbox)
-            iou=boxes.box_iou(abs_box,helper.get_abs_coord(cxypwh))
+            iou=helper.bbox_iou(bbox.unsqueeze(1),cxypwh.unsqueeze(0),iou_type=self.iou_type)
             iou_mask=iou.max(axis=1)[1]
-            iou_values=iou.max(axis=1)[0]
             gt=cxypwh[iou_mask].cuda()
             in_wh=inw_inh[iou_mask]
+
             gx=(bbox[:,0] * in_wh)-(bbox[:,0] * in_wh).long()
             gy=(bbox[:,1] * in_wh)-(bbox[:,1] * in_wh).long()
+            gx = torch.clamp(gx,0.0001,0.9999)
+            gy = torch.clamp(gy,0.0001,0.9999)
+            
             gw=torch.log(bbox[:,2]/gt[:,2] + 1e-16)
             gh=torch.log(bbox[:,3]/gt[:,3] + 1e-16)
 
             tgt.append(torch.stack([gx,gy,gw,gh],axis=1))
-            not_ignore_mask=((iou<ignore_threshold).sum(axis=0))>0
-            noobj_mask.append(not_ignore_mask)
+            nobj_mask=((iou<ignore_threshold).prod(axis=0))
+            nobj_mask[iou_mask]=False
+            noobj_mask.append(nobj_mask)
             obj_mask.append(iou_mask)
 
-        noobj_mask=torch.stack(noobj_mask,axis=0)
+        noobj_mask=torch.stack(noobj_mask,axis=0).bool()
         tgt=torch.cat(tgt,axis=0)
         tcls=torch.cat(tcls,axis=0)
         return tgt,tcls,obj_mask, noobj_mask

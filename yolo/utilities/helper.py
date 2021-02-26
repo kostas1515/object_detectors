@@ -221,13 +221,13 @@ def bbox_iou(bb1, bb2,iou_type,CUDA=True,xcycwh=True):
     # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
 
     if iou_type == 1:
-        GIoU, DIoU, CIoU = (1,0,0)
+        GIoU, DIoU, CIoU = (True,False,False)
     elif(iou_type == 2):
-        GIoU, DIoU, CIoU = (0,1,0)
+        GIoU, DIoU, CIoU = (False,True,False)
     elif(iou_type == 3):
-        GIoU, DIoU, CIoU = (0,0,1)
+        GIoU, DIoU, CIoU = (False,False,True)
     else:
-        GIoU, DIoU, CIoU = (0,0,0)
+        GIoU, DIoU, CIoU = (False,False,False)
 
     if xcycwh is True:
         box1=get_abs_coord(bb1)
@@ -241,8 +241,8 @@ def bbox_iou(bb1, bb2,iou_type,CUDA=True,xcycwh=True):
         box1 = box1.cuda()
 
     # Get the coordinates of bounding boxes
-    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:,0], box1[:,1], box1[:,2], box1[:,3]
-    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:,0], box2[:,1], box2[:,2], box2[:,3]
+    b1_x1, b1_y1, b1_x2, b1_y2 = box1[...,0], box1[...,1], box1[...,2], box1[...,3]
+    b2_x1, b2_y1, b2_x2, b2_y2 = box2[...,0], box2[...,1], box2[...,2], box2[...,3]
 
     # Intersection area
     inter = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * \

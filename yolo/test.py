@@ -43,6 +43,12 @@ def main(cfg: DictConfig) -> None:
         if cfg.only_test is False:
             status = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
             if status is None:
+                msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
+                    f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
+                    f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
+                    f"alpha:{cfg.yolo.alpha}, gamma:{cfg.yolo.gamma},lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, failed"
+                log.info(msg)
+                del model,batch_loss,optimizer,train_loader,test_loader,criterion
                 return - 10000000
 
         if cfg.metric =='mAP':
@@ -51,7 +57,7 @@ def main(cfg: DictConfig) -> None:
             msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
                     f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
                     f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
-                    f"lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, mAP={mAP}"
+                    f"alpha:{cfg.yolo.alpha}, gamma:{cfg.yolo.gamma},lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, mAP={mAP}"
             log.info(msg)
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
             return mAP
@@ -63,7 +69,7 @@ def main(cfg: DictConfig) -> None:
             msg=f"RANK{rank}, lambda_xy:{cfg.yolo.lambda_xy}, lambda_wh: {cfg.yolo.lambda_wh},"+\
                     f"lambda_iou:{cfg.yolo.lambda_iou}, ignore_threshold:{cfg.yolo.ignore_threshold},"+\
                     f"lambda_conf:{cfg.yolo.lambda_conf}, lambda_no_conf:{cfg.yolo.lambda_no_conf},"+\
-                    f"lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, val_loss={valid_loss}"
+                    f"alpha:{cfg.yolo.alpha}, gamma:{cfg.yolo.gamma},lambda_cls: {cfg.yolo.lambda_cls}, iou_type:{cfg.yolo.iou_type}, val_loss={valid_loss}"
             log.info(msg)
 
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
