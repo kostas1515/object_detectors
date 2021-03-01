@@ -5,6 +5,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from utilities import helper
 from skimage import io
 import random
+import cv2
 
 class LVISDetection(VisionDataset):
     """`MS Coco Detection <https://cocodataset.org/#detection-2016>`_ Dataset.
@@ -54,6 +55,9 @@ class LVISDetection(VisionDataset):
         path='/'.join(path)
 
         img = io.imread(os.path.join(self.root, path))
+        if (img.shape[-1]==1):
+            img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
+
         sample=(img,target)
         if len(target)==0:
             return None

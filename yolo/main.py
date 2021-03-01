@@ -14,6 +14,7 @@ import logging
 import torch.multiprocessing as mp
 from utilities import helper
 from torch.utils.tensorboard import SummaryWriter
+import random
 
 
 
@@ -26,7 +27,7 @@ def setup(rank, world_size):
         backend: the backend used for distributed processing.
     """
     os.environ["MASTER_ADDR"] = 'localhost'
-    os.environ["MASTER_PORT"] = '12355'
+    os.environ["MASTER_PORT"] = "1234"
     dist.init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
 
 
@@ -75,9 +76,23 @@ def pipeline(rank,cfg):
     #criterion
     criterion = YOLOForw(cfg['yolo']).cuda()
 
+
+
     epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
+        #multiscale training
+        if cfg.multiscale is True:
+            rau = random.randint(10,20)
+            #dataloaders
+            cfg.dataset.inp_dim = rau*32
+            cfg.yolo.img_size = rau*32
+            rau = (rau/15)**2
+            cfg.dataset.tr_batch_size = int(cfg.dataset.tr_batch_size//rau)
+            cfg.dataset.ts_batch_size = int(cfg.dataset.ts_batch_size//rau)
+            train_loader,test_loader = get_dataloaders(cfg)       
+            criterion = YOLOForw(cfg['yolo']).cuda()
+            
         avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
         dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
         dist.all_reduce(avg_stats, op=torch.distributed.ReduceOp.SUM, async_op=False)
@@ -97,7 +112,7 @@ def pipeline(rank,cfg):
                     save_model(model,optimizer,metrics,i+last_epoch,'best')
                     mAP_best=mAP
         else:
-            batch_loss = - valid_one_epoch(test_loader,model,criterion)
+            batch_loss = - valid_one_epoch(test_loader,model,criterion,cfg)
             dist.all_reduce(batch_loss, op=torch.distributed.ReduceOp.SUM, async_op=False)
             if rank==0:
                 print(f'batch_loss is {batch_loss}')

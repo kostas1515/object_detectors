@@ -62,7 +62,7 @@ def main(cfg: DictConfig) -> None:
             del model,batch_loss,optimizer,train_loader,test_loader,criterion
             return mAP
         else:
-            batch_loss = valid_one_epoch(test_loader,model,criterion)
+            batch_loss = valid_one_epoch(test_loader,model,criterion,cfg)
             if torch.isnan(batch_loss):
                 batch_loss = torch.tensor([1e8],device='cuda')
             valid_loss = -batch_loss.item()

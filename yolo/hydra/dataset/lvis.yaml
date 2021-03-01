@@ -4,6 +4,7 @@ train_annotations : "../../../datasets/lvis/data/lvis_v1_train.json"
 val_annotations : "../../../datasets/lvis/data/lvis_v1_val.json"
 dset_name : "lvis"
 inp_dim : 416
+augment: 0
 num_classes : 1203
 num_workers : 1
 tr_subset : 1

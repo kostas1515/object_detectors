@@ -19,28 +19,28 @@ ax_config:
   params:
     yolo.lambda_xy:
       type: range
-      bounds: [0.0, 5.0]
+      bounds: [0.0, 2.0]
     yolo.lambda_wh:
       type: range
-      bounds: [0.0, 5.0]
+      bounds: [0.0, 2.0]
     yolo.lambda_iou:
       type: range
-      bounds: [0.0, 5.0]
+      bounds: [0.0, 2.0]
     yolo.iou_type:
       type: choice 
       values : [1,2,3]
     yolo.ignore_threshold:
       type: range
-      bounds: [0.2, 0.8]
+      bounds: [0.1, 0.9]
     yolo.lambda_conf:
       type: range
-      bounds: [0.1, 5]
+      bounds: [0.0, 2.0]
     yolo.lambda_no_conf:
       type: range
       bounds: [0.0, 1]
     yolo.lambda_cls:
       type: range
-      bounds: [0.1, 5.0]
+      bounds: [0.1, 2.0]
     yolo.alpha:
       type: range
       bounds: [0.0, 1.0]
