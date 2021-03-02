@@ -76,14 +76,14 @@ def pipeline(rank,cfg):
     #criterion
     criterion = YOLOForw(cfg['yolo']).cuda()
 
-
-
     epochs=100
     batch_loss = torch.zeros(1)
     for i in range(epochs):
         #multiscale training
         if cfg.multiscale is True:
-            rau = random.randint(10,20)
+            rau = torch.randint(10,20,(1,1),device='cuda')
+            dist.broadcast(rau,0)
+            rau=rau.item()
             #dataloaders
             cfg.dataset.inp_dim = rau*32
             cfg.yolo.img_size = rau*32
@@ -99,6 +99,7 @@ def pipeline(rank,cfg):
         avg_losses = avg_losses.cpu().numpy() 
         avg_stats = avg_stats.cpu().numpy() / cfg.gpus
         if cfg.metric =='mAP':
+            print('test')
             results=test_one_epoch(test_loader,model,criterion,cfg)
             save_partial_results(results,rank)
             dist.barrier()

@@ -14,7 +14,6 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(dataloader):
             # measure data loading time
-            
             images=images.to('cuda',non_blocking=True)
             targets = [{k: v.to('cuda',non_blocking=True) for k, v in t.items()} for t in targets]
             

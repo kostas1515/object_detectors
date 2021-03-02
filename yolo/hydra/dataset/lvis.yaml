@@ -6,7 +6,7 @@ dset_name : "lvis"
 inp_dim : 416
 augment: 0
 num_classes : 1203
-num_workers : 1
+num_workers : 4
 tr_subset : 1
 ts_subset : 1
 tr_batch_size : 8
