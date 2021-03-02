@@ -6,6 +6,7 @@ from utilities import helper
 from skimage import io
 import random
 import cv2
+import numpy as np
 
 class LVISDetection(VisionDataset):
     """`MS Coco Detection <https://cocodataset.org/#detection-2016>`_ Dataset.
@@ -49,18 +50,24 @@ class LVISDetection(VisionDataset):
         img_id = self.ids[index]
         ann_ids = lvis.get_ann_ids(img_ids=[img_id])
         target = lvis.load_anns(ann_ids)
-
+        targets={}
         path = lvis.load_imgs([img_id])[0]['coco_url']
         path=path.split('/')[-2:]
         path='/'.join(path)
 
         img = io.imread(os.path.join(self.root, path))
-        if (img.shape[-1]==1):
+        if (img.shape[-1]!=3):
             img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
 
-        sample=(img,target)
-        if len(target)==0:
+        if target==[]:
             return None
+
+        targets['bbox'] = np.array([t['bbox'] for t in target])
+        targets['category_id'] = np.array([t['category_id'] for t in target],dtype=np.int64)
+        targets['area']=np.array([t['area'] for t in target])
+        targets['image_id']=np.array(target[0]['image_id'],dtype=np.int64)
+
+        sample=img,targets
         
         if self.transform:
             sample = self.transform(sample)

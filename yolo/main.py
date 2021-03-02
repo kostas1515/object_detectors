@@ -15,6 +15,7 @@ import torch.multiprocessing as mp
 from utilities import helper
 from torch.utils.tensorboard import SummaryWriter
 import random
+import math
 
 
 
@@ -82,14 +83,14 @@ def pipeline(rank,cfg):
         #multiscale training
         if cfg.multiscale is True:
             rau = torch.randint(10,20,(1,1),device='cuda')
-            dist.broadcast(rau,0)
+            # dist.broadcast(rau,0)
             rau=rau.item()
-            #dataloaders
             cfg.dataset.inp_dim = rau*32
             cfg.yolo.img_size = rau*32
-            rau = (rau/15)**2
-            cfg.dataset.tr_batch_size = int(cfg.dataset.tr_batch_size//rau)
-            # cfg.dataset.ts_batch_size = int(cfg.dataset.ts_batch_size//rau)
+            if rau>15:
+                #adjust batch_size
+                rau = (rau/15)**2
+                cfg.dataset.tr_batch_size = int(math.floor(cfg.dataset.tr_batch_size/rau))
             train_loader,test_loader = get_dataloaders(cfg)       
             criterion = YOLOForw(cfg['yolo']).cuda()
             
