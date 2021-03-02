@@ -89,7 +89,7 @@ def pipeline(rank,cfg):
             cfg.yolo.img_size = rau*32
             rau = (rau/15)**2
             cfg.dataset.tr_batch_size = int(cfg.dataset.tr_batch_size//rau)
-            cfg.dataset.ts_batch_size = int(cfg.dataset.ts_batch_size//rau)
+            # cfg.dataset.ts_batch_size = int(cfg.dataset.ts_batch_size//rau)
             train_loader,test_loader = get_dataloaders(cfg)       
             criterion = YOLOForw(cfg['yolo']).cuda()
             
@@ -99,7 +99,6 @@ def pipeline(rank,cfg):
         avg_losses = avg_losses.cpu().numpy() 
         avg_stats = avg_stats.cpu().numpy() / cfg.gpus
         if cfg.metric =='mAP':
-            print('test')
             results=test_one_epoch(test_loader,model,criterion,cfg)
             save_partial_results(results,rank)
             dist.barrier()
