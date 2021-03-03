@@ -150,8 +150,9 @@ def get_progress_stats(true_pred,no_obj,iou_list,targets):
 
 
 def collate_fn(batch):
-    
     pictures=[i[0] for i in filter(None,batch)]
+    if pictures==[]:
+        return (None,None)
     pictures=torch.cat(pictures, dim=0)
     
     targets=[i[1] for i in filter(None,batch)]

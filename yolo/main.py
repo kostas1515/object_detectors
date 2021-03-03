@@ -83,7 +83,7 @@ def pipeline(rank,cfg):
         #multiscale training
         if cfg.multiscale is True:
             rau = torch.randint(10,20,(1,1),device='cuda')
-            # dist.broadcast(rau,0)
+            dist.broadcast(rau,0)
             rau=rau.item()
             cfg.dataset.inp_dim = rau*32
             cfg.yolo.img_size = rau*32
