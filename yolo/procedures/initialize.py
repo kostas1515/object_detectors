@@ -9,7 +9,7 @@ from apex import amp
 import time
 
 
-def save_model(model,optimizer,metrics,epoch,name):
+def save_model(model,optimizer,scheduler,metrics,epoch,name):
     if not os.path.exists('checkpoints/'):
         os.makedirs('checkpoints/')
     
@@ -18,7 +18,9 @@ def save_model(model,optimizer,metrics,epoch,name):
     torch.save({'epoch': epoch,
                 'model_state_dict': model.module.state_dict() if type(model) is not DDP else model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
                 'optimizer_name':optimizer.name,
+                'scheduler_name':scheduler.name,
                 'metrics': metrics
                 }, checkpoint)
 
@@ -52,7 +54,7 @@ def get_model(cfg):
 
 
 
-def load_checkpoint(model,optimizer,cfg):
+def load_checkpoint(model,optimizer,scheduler,cfg):
     exp_name=cfg.experiment.name
     map_location="cuda:{}".format(cfg.rank)
     if os.path.exists(os.path.join('../',exp_name,'checkpoints/')):
@@ -68,10 +70,20 @@ def load_checkpoint(model,optimizer,cfg):
                 new_state_dict[name]=v
             model.load_state_dict(new_state_dict)
         optimizer_name=checkpoint['optimizer_name']
+        try:
+            scheduler_name=checkpoint['scheduler_name']
+        except:
+            pass
         epoch=checkpoint['epoch'] + 1
         metrics=checkpoint['metrics']
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         optimizer.name=optimizer_name
+        try:
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+            scheduler.name=scheduler_name
+        except:
+            print('ERROR: could not load scheduler')
+            pass
         return metrics,epoch
     elif cfg.pretrained_head is True:
         print('pretrained loaded')
@@ -86,5 +98,29 @@ def load_checkpoint(model,optimizer,cfg):
             model.load_state_dict(checkpoint)
     else:
         print('checkpoint not found, returning random model')
+    
+    
 
     return {'mAP':None,'val_loss':None}, 0
+
+
+
+def get_scheduler(optimizer,cfg):
+    config=cfg.scheduler
+    if config.name == 'reduce_on_plateau':
+        mode = config.mode
+        factor=config.factor
+        patience=config.patience
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode,factor,patience)
+    elif config.name == 'multistep':
+        milestones = config.milestones
+        factor=config.factor
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=factor)
+    else:
+        factor=config.factor
+        step_size=config.step_size
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=factor)
+
+    scheduler.name=config.name
+
+    return scheduler

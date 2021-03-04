@@ -1,0 +1,4 @@
+# @package _group_
+name: 'multistep'
+milestones: [15,25]
+factor: 0.1

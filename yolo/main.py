@@ -9,7 +9,7 @@ from procedures.train_one_epoch import train_one_epoch
 from procedures.valid_one_epoch import valid_one_epoch
 from procedures.test_one_epoch import test_one_epoch
 from procedures.eval_results import eval_partial_results,save_partial_results
-from procedures.initialize import save_model,get_model,load_checkpoint
+from procedures.initialize import save_model,get_model,load_checkpoint,get_scheduler
 import logging
 import torch.multiprocessing as mp
 from utilities import helper
@@ -60,17 +60,22 @@ def pipeline(rank,cfg):
     mAP_best = 0
     val_loss_best = -1000000
     torch.backends.cudnn.benchmark = True
+    log=get_logger()
     if rank == 0:
-        log=get_logger()
         writer = SummaryWriter('tensorboard')
 
 
     #model,optimizer
     model,optimizer,metrics,last_epoch=get_model(cfg)
+
+    #scheduler
+    scheduler=get_scheduler(optimizer,cfg)
+
     #checkpoint
     if cfg.resume is True:
-        metrics,last_epoch = load_checkpoint(model,optimizer,cfg)
-        
+        metrics,last_epoch = load_checkpoint(model,optimizer,scheduler,cfg)
+        mAP_best = metrics["mAP"]
+        val_loss_best = metrics["val_loss"]
     #dataloaders
     train_loader,test_loader = get_dataloaders(cfg)       
     
@@ -78,27 +83,36 @@ def pipeline(rank,cfg):
     criterion = YOLOForw(cfg['yolo']).cuda()
 
     epochs=100
-    batch_loss = torch.zeros(1)
+    batch_loss = torch.zeros(1,device='cuda')
+    mAP = torch.zeros(1,device='cuda')
     for i in range(epochs):
+
         #multiscale training
-        if cfg.multiscale is True:
-            rau = torch.randint(10,20,(1,1),device='cuda')
-            dist.broadcast(rau,0)
-            rau=rau.item()
-            cfg.dataset.inp_dim = rau*32
-            cfg.yolo.img_size = rau*32
-            if rau>15:
+        if cfg.multiscale>0:
+            if (i%cfg.multiscale)==0:
+                rho = torch.randint(10,20,(1,1),device='cuda')
+                dist.broadcast(rho,0)
+                rho=rho.item()
+                cfg.dataset.inp_dim = rho*32
+                cfg.yolo.img_size = rho*32
                 #adjust batch_size
-                rau = (rau/15)**2
-                cfg.dataset.tr_batch_size = int(math.floor(cfg.dataset.tr_batch_size/rau))
+                if rho>13:
+                    rho = (rho/13)**2
+                    cfg.dataset.tr_batch_size = int(math.floor(cfg.dataset.tr_batch_size/rho))
             train_loader,test_loader = get_dataloaders(cfg)       
             criterion = YOLOForw(cfg['yolo']).cuda()
-            
-        avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
+
+        try:
+            avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
+        except TypeError:
+            msg=f"Rank:{rank} gave None Loss"
+            log.warning(msg)
+            avg_losses,avg_stats = 10000 * torch.ones(6,device='cuda'),torch.zeros(5,device='cuda')
         dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
         dist.all_reduce(avg_stats, op=torch.distributed.ReduceOp.SUM, async_op=False)
         avg_losses = avg_losses.cpu().numpy() 
         avg_stats = avg_stats.cpu().numpy() / cfg.gpus
+
         if cfg.metric =='mAP':
             results=test_one_epoch(test_loader,model,criterion,cfg)
             save_partial_results(results,rank)
@@ -108,10 +122,11 @@ def pipeline(rank,cfg):
                 print(f'map is {mAP}')
                 metrics['mAP']=mAP
                 metrics['val_loss']=-1000000
-                save_model(model,optimizer,metrics,i+last_epoch,'last')
-                if mAP>mAP_best:
-                    save_model(model,optimizer,metrics,i+last_epoch,'best')
-                    mAP_best=mAP
+                mAP=torch.tensor(mAP,device='cuda')
+                save_model(model,optimizer,scheduler,metrics,i+last_epoch,'last')
+                if  metrics['mAP']>mAP_best:
+                    save_model(model,optimizer,scheduler,metrics,i+last_epoch,'best')
+                    mAP_best= metrics['mAP']
         else:
             batch_loss = - valid_one_epoch(test_loader,model,criterion,cfg)
             dist.all_reduce(batch_loss, op=torch.distributed.ReduceOp.SUM, async_op=False)
@@ -119,10 +134,21 @@ def pipeline(rank,cfg):
                 print(f'batch_loss is {batch_loss}')
                 metrics['mAP']=0
                 metrics['val_loss']=batch_loss.item()
-                save_model(model,optimizer,metrics,i+last_epoch,'last')
-                if batch_loss>val_loss_best:
-                    save_model(model,optimizer,metrics,i+last_epoch,'best')
-                    val_loss_best=batch_loss
+                save_model(model,optimizer,scheduler,metrics,i+last_epoch,'last')
+                if metrics['val_loss']>val_loss_best:
+                    save_model(model,optimizer,scheduler,metrics,i+last_epoch,'best')
+                    val_loss_best=metrics['val_loss']
+
+        #scheduler step
+        if scheduler.name =='reduce_on_plateau':
+            if cfg.metric =='mAP':
+                dist.broadcast(mAP,0)
+                scheduler.step(mAP.item())
+            else:
+                scheduler.step(batch_loss.item())
+        else:
+            scheduler.step()   
+
         if rank==0:
             msg= f'Epoch:{i+last_epoch},Loss is:{avg_losses.sum()}, xy is:{avg_losses[0]},wh is:{avg_losses[1]},iou is:{avg_losses[2]},',f'pos_conf is:{avg_losses[3]}, neg_conf is:{avg_losses[4]},class is:{avg_losses[5]}, mAP is:{metrics["mAP"]}, val_loss is: {metrics["val_loss"]}' 
             stats_msg = {'iou':avg_stats[0],'pos_conf':avg_stats[1],'neg_conf':avg_stats[2],'pos_class':avg_stats[3],'neg_class':avg_stats[4]}
