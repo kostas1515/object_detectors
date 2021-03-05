@@ -54,7 +54,7 @@ def get_model(cfg):
 
 
 
-def load_checkpoint(model,optimizer,scheduler,cfg):
+def load_checkpoint(model,optimizer,cfg,scheduler=None):
     exp_name=cfg.experiment.name
     map_location="cuda:{}".format(cfg.rank)
     if os.path.exists(os.path.join('../',exp_name,'checkpoints/')):
@@ -82,7 +82,7 @@ def load_checkpoint(model,optimizer,scheduler,cfg):
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
             scheduler.name=scheduler_name
         except:
-            print('ERROR: could not load scheduler')
+            print('Warning: could not load scheduler')
             pass
         return metrics,epoch
     elif cfg.pretrained_head is True:

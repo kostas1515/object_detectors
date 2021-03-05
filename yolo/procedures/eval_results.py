@@ -57,6 +57,7 @@ def eval_partial_results(epoch,dset_name,validation_path):
         lvis_eval = LVISEval(validation_path, resFile, 'bbox')
         lvis_eval.run()
         metrics=lvis_eval.get_results()
+        lvis_eval.print_results()
         mAP=metrics['AP']
 
     return (mAP)
@@ -92,6 +93,7 @@ def eval_results(results,dset_name,validation_path):
         lvis_eval = LVISEval(validation_path, resFile, 'bbox')
         lvis_eval.run()
         metrics=lvis_eval.get_results()
+        lvis_eval.print_results()
         mAP=metrics['AP']
     
     os.remove(resFile)

@@ -73,11 +73,11 @@ def pipeline(rank,cfg):
 
     #checkpoint
     if cfg.resume is True:
-        metrics,last_epoch = load_checkpoint(model,optimizer,scheduler,cfg)
+        metrics,last_epoch = load_checkpoint(model,optimizer,cfg,scheduler)
         mAP_best = metrics["mAP"]
         val_loss_best = metrics["val_loss"]
     #dataloaders
-    train_loader,test_loader = get_dataloaders(cfg)       
+    train_loader,test_loader = get_dataloaders(cfg)      
     
     #criterion
     criterion = YOLOForw(cfg['yolo']).cuda()

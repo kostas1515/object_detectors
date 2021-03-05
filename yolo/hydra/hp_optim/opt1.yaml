@@ -17,18 +17,21 @@ ax_config:
     max_epochs_without_improvement: 10
 
   params:
-    yolo.lambda_xy:
-      type: range
-      bounds: [0.0, 2.0]
-    yolo.lambda_wh:
-      type: range
-      bounds: [0.0, 2.0]
+    # yolo.lambda_xy:
+    #   type: range
+    #   bounds: [0.0, 2.0]
+    # yolo.lambda_wh:
+    #   type: range
+    #   bounds: [0.0, 2.0]
     yolo.lambda_iou:
       type: range
       bounds: [0.0, 2.0]
     yolo.iou_type:
       type: choice 
       values : [1,2,3]
+    yolo.class_loss:
+      type: choice 
+      values : [0,1]
     yolo.ignore_threshold:
       type: range
       bounds: [0.1, 0.9]

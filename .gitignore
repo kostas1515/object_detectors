@@ -8,3 +8,4 @@ yolo/*.zip
 *.tar
 *.pth
 yolo/batch_files/*
+yolo/notebooks/*

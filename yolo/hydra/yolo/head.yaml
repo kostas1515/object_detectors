@@ -14,6 +14,7 @@ lambda_no_conf: 0.1
 lambda_cls : 1.0
 alpha: 0.5
 gamma: 1
+class_loss: 1 # 0 for bce, 1 for ce
 reduction: 'sum'
 inf_confidence: 0.5
 inf_iou_threshold: 0.5
