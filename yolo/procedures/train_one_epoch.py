@@ -60,7 +60,7 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
                 msg=f'Rank: {rank}, Iteration:{counter + iterations},Loss is:{sub_losses.sum()}, xy is:{sub_losses[0]},wh is:{sub_losses[1]},iou is:{sub_losses[2]},pos_conf is:{sub_losses[3]}, neg_conf is:{sub_losses[4]},class is:{sub_losses[5]}'
                 logger.warning(msg)
                 print(msg)
-                return None
+                
             try:
                 with amp.scale_loss(batch_loss, optimizer) as scaled_loss:
                     scaled_loss.backward()

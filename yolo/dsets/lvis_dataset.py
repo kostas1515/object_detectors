@@ -72,8 +72,6 @@ class LVISDetection(VisionDataset):
         if self.transform:
             sample = self.transform(sample)
             
-
-
         return sample
 
 

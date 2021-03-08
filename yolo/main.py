@@ -86,28 +86,27 @@ def pipeline(rank,cfg):
     batch_loss = torch.zeros(1,device='cuda')
     mAP = torch.zeros(1,device='cuda')
     for i in range(epochs):
-
         #multiscale training
         if cfg.multiscale>0:
             if (i%cfg.multiscale)==0:
                 rho = torch.randint(10,20,(1,1),device='cuda')
-                dist.broadcast(rho,0)
+                # dist.broadcast(rho,0)
                 rho=rho.item()
                 cfg.dataset.inp_dim = rho*32
                 cfg.yolo.img_size = rho*32
-                #adjust batch_size
-                if rho>13:
-                    rho = (rho/13)**2
-                    cfg.dataset.tr_batch_size = int(math.floor(cfg.dataset.tr_batch_size/rho))
-            train_loader,test_loader = get_dataloaders(cfg)       
-            criterion = YOLOForw(cfg['yolo']).cuda()
-
-        try:
+                # #adjust batch_size
+                # if rho>13:
+                #     rho = (rho/13)**2
+                #     cfg.dataset.tr_batch_size = int(math.floor(cfg.dataset.tr_batch_size/rho))
+            train_loader.dataset.transforms.transform.transforms[-2].scale = cfg.yolo.img_size
+            # train_loader,test_loader = get_dataloaders(cfg)       
+            criterion.multiscale(cfg.yolo.img_size)
             avg_losses,avg_stats = train_one_epoch(train_loader,model,optimizer,criterion,i,cfg)
-        except TypeError:
-            msg=f"Rank:{rank} gave None Loss"
-            log.warning(msg)
-            avg_losses,avg_stats = 10000 * torch.ones(6,device='cuda'),torch.zeros(5,device='cuda')
+        
+            # msg=f"Rank:{rank} gave None Loss"
+            # log.warning(msg)
+            # avg_losses,avg_stats = 10000 * torch.ones(6,device='cuda'),torch.zeros(5,device='cuda')
+
         dist.all_reduce(avg_losses, op=torch.distributed.ReduceOp.SUM, async_op=False)
         dist.all_reduce(avg_stats, op=torch.distributed.ReduceOp.SUM, async_op=False)
         avg_losses = avg_losses.cpu().numpy() 
@@ -125,6 +124,7 @@ def pipeline(rank,cfg):
                 mAP=torch.tensor(mAP,device='cuda')
                 save_model(model,optimizer,scheduler,metrics,i+last_epoch,'last')
                 if  metrics['mAP']>mAP_best:
+                    print(f'New Best Value:{metrics["mAP"]}!')
                     save_model(model,optimizer,scheduler,metrics,i+last_epoch,'best')
                     mAP_best= metrics['mAP']
         else:
@@ -136,6 +136,7 @@ def pipeline(rank,cfg):
                 metrics['val_loss']=batch_loss.item()
                 save_model(model,optimizer,scheduler,metrics,i+last_epoch,'last')
                 if metrics['val_loss']>val_loss_best:
+                    print(f'New Best Value:{metrics["val_loss"]}!')
                     save_model(model,optimizer,scheduler,metrics,i+last_epoch,'best')
                     val_loss_best=metrics['val_loss']
 

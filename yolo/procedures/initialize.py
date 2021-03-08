@@ -116,6 +116,10 @@ def get_scheduler(optimizer,cfg):
         milestones = config.milestones
         factor=config.factor
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=factor)
+    elif config.name == 'cyclic':
+        base_lr=config.base_lr
+        max_lr=config.max_lr
+        scheduler=optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr)
     else:
         factor=config.factor
         step_size=config.step_size
