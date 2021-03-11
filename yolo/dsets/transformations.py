@@ -43,7 +43,7 @@ class ResizeToTensor(object):
         
         bbs=helper.convert2_rel_xcycwh(bbs,img_size)
 
-        targets["bbox"]=bbs
+        targets["bbox"]=bbs.float()
         targets["img_size"]=img_size
         targets["category_id"]=labels
         targets['area']=areas/(img_size[0]*img_size[1])
@@ -107,8 +107,8 @@ class Augment(object):
             iaa.Sequential([
                 iaa.Grayscale(alpha=(0.1, 0.9)),
                 iaa.Affine(
-                translate_percent={"y": (-0.15, 0.15)}
-            )
+                    translate_percent={"y": (-0.15, 0.15)}
+                )
             ]),
             iaa.Sequential([
                 iaa.LinearContrast((0.6, 1.4)),
@@ -126,22 +126,22 @@ class Augment(object):
             iaa.Sequential([
                 iaa.LinearContrast((0.6, 1.4)),
                 iaa.Affine(
-                translate_percent={"x": (-0.25, 0.25)}
-            )
+                    translate_percent={"x": (-0.25, 0.25)}
+                )
             ]),
             iaa.Sequential([
                 iaa.Cutout(nb_iterations=(1, 5), size=0.1, squared=False),
                 iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 15), per_channel=0.5),
                 iaa.Affine(
-                scale={"x": (0.9, 1.1), "y": (0.9, 1.1)},
-            )
+                    scale={"x": (0.9, 1.1), "y": (0.9, 1.1)},
+                )
             ]),
             iaa.Sequential([
                 iaa.CoarseDropout((0.0, 0.05), size_percent=(0.02, 0.25)),
                 iaa.GaussianBlur(sigma=(0, 3)),
                 iaa.Affine(
-                scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}
-            )
+                    scale={"x": (0.8, 1.2), "y": (0.8, 1.2)}
+                )
             ])
         ])
                         
@@ -161,9 +161,10 @@ class Augment(object):
         
         
         
-        while(at_least_one_box==False):
-            bbs = BoundingBoxesOnImage([
-            BoundingBox(x1=b[0], y1=b[1], x2=b[2], y2=b[3], label=l) for b,l in zip(temp_b_,labels)], shape=temp_img_.shape)
+        while(at_least_one_box is False):
+            bbs = BoundingBoxesOnImage([BoundingBox(x1=b[0], y1=b[1], x2=b[2], y2=b[3], label=l) 
+                                        for b,l in zip(temp_b_,labels)], 
+                                        shape=temp_img_.shape)
             
             image_aug, bbs_aug = self.aug(image=temp_img_, bounding_boxes=bbs)
 

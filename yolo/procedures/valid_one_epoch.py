@@ -10,6 +10,8 @@ def valid_one_epoch(dataloader,model,yolo_loss,cfg):
     metrics = torch.zeros(6,device='cuda')
     stats = torch.zeros(5,device='cuda')
     torch.backends.cudnn.benchmark = True
+    inp_dim=cfg.dataset.inp_dim
+    yolo_loss.set_img_size(inp_dim)
     counter = 0 
     with torch.no_grad():
         for imgs,targets in dataloader:

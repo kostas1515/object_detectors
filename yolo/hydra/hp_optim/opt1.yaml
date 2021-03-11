@@ -50,6 +50,9 @@ ax_config:
     yolo.gamma:
       type: range
       bounds: [0.0, 3.0]
+    # multiscaler.broadcast:
+    #   type: choice 
+    #   values : [True,False]
     # optimizer.momentum:
     #   type: range
     #   bounds: [0.7,1.0]

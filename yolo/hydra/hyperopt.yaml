@@ -13,7 +13,7 @@ resume: False
 pretrained_head: False
 verbose: False
 track_epoch: False
-freq: 10
+verbose_freq: 10
 
 defaults:
   - dataset: coco
@@ -22,6 +22,7 @@ defaults:
   - optimizer: sgd 
   - experiment: experiment
   - hp_optim: opt1
+  - multiscaler: ms
   - hydra/sweeper: ax
   - hydra/launcher: joblib
 

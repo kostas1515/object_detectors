@@ -61,28 +61,31 @@ def get_dataloaders(cfg):
                                             annFile = val_annotations,
                                             subset=ts_subset,
                                             transform=transforms.Compose(transformationsList_test))     
-        
+    if config.num_workers>0:
+        mp_context='fork'
+    else:
+        mp_context=None
     if cfg.gpus>1:
         train_sampler = DistributedSampler(ds_train,num_replicas=cfg.gpus,rank=cfg.rank)
         test_sampler = DistributedSampler(ds_val,num_replicas=cfg.gpus,rank=cfg.rank)
 
         train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
                                   shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
-                                  pin_memory=True,sampler=train_sampler, multiprocessing_context='fork')
+                                  pin_memory=True,sampler=train_sampler, multiprocessing_context=mp_context)
 
         test_loader = DataLoader(dataset=ds_val,batch_size=ts_batch_size,
                                   shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
-                                  pin_memory=True,sampler=test_sampler,multiprocessing_context='fork')
+                                  pin_memory=True,sampler=test_sampler,multiprocessing_context=mp_context)
     else:
         print("something went wrong with dist sampler, use standart loader")
 
         train_loader = DataLoader(dataset=ds_train,batch_size=tr_batch_size,
                                   shuffle=True,num_workers=num_workers,collate_fn=helper.collate_fn,
-                                  pin_memory=True,multiprocessing_context='fork')
+                                  pin_memory=True,multiprocessing_context=mp_context)
 
         test_loader = DataLoader(dataset=ds_val,batch_size=ts_batch_size,
                                  shuffle=False,num_workers=num_workers,collate_fn=helper.collate_fn,
-                                 pin_memory=True,multiprocessing_context='fork')
+                                 pin_memory=True,multiprocessing_context=mp_context)
 
 
     test_loader.dset_name = dset_name

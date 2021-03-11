@@ -6,11 +6,14 @@ import itertools
 def test_one_epoch(dataloader,model,yolo_loss,cfg):
     confidence=cfg.yolo.inf_confidence
     iou_threshold=cfg.yolo.inf_iou_threshold
-    inp_dim=yolo_loss.img_size
+    inp_dim=cfg.dataset.inp_dim
+    yolo_loss.set_img_size(inp_dim)
     model.eval()
     results = []
     dset_name = dataloader.dset_name
     torch.backends.cudnn.benchmark = True
+    print(inp_dim)
+    print(yolo_loss.img_size)
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(dataloader):
             # measure data loading time

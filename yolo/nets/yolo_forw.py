@@ -201,5 +201,5 @@ class YOLOForw(nn.Module):
         
         return stats
 
-    def multiscale(self,img_size):
+    def set_img_size(self,img_size):
         self.img_size = img_size

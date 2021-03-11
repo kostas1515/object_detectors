@@ -7,6 +7,29 @@ import torch
 import logging
 from torch.utils.tensorboard import SummaryWriter
 import math
+import random
+import torch.distributed as dist
+import torch.nn.functional as F
+
+
+def multiscale(imgs,criterion,cfg):
+    imgsz = cfg.dataset.inp_dim
+    bounds = cfg.multiscaler.bounds
+    cs = imgsz // 32
+    lb=math.ceil(imgsz*bounds[0]/32)
+    ub=math.floor(imgsz*bounds[1]/32)
+    sf = random.randrange(lb,ub)
+    sf=torch.tensor([sf],device='cuda')
+    if cfg.multiscaler.broadcast is True:
+        dist.broadcast(sf,0)
+    sf=sf.item()
+    if sf != cs:
+        imgs = F.interpolate(imgs, size=sf*32, mode='bilinear', align_corners=False)
+        criterion.set_img_size(sf*32)
+    else:
+        criterion.set_img_size(imgsz)
+    return imgs
+    
 
 
 
@@ -14,7 +37,7 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
     board = cfg.track_epoch
     verbose = cfg.verbose
     rank = cfg.rank
-    freq = cfg.freq
+    freq = cfg.verbose_freq
     batch_size = cfg.dataset.tr_batch_size
     dataset_len = len(dataloader.dataset) / cfg.gpus
     iterations = math.ceil(epoch * (dataset_len / batch_size))
@@ -38,11 +61,14 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
     metrics = torch.zeros(6,device='cuda')
     stats = torch.zeros(5,device='cuda')
     for imgs,targets in dataloader:
-        if imgs!=None:
+        if imgs is not None:
             for param in model.parameters():
                 param.grad = None
             batch_loss=0
             imgs=imgs.to('cuda',non_blocking=True)
+            if cfg.multiscaler.freq>0:
+                if(counter % cfg.multiscaler.freq)==0:
+                    imgs = multiscale(imgs,yolo_loss,cfg)
             targets = [{k: v.to('cuda',non_blocking=True) for k, v in t.items()} for t in targets]
             #forw
             out=model(imgs)

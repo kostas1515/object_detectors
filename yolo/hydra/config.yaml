@@ -7,19 +7,19 @@ apex_opt: 'O0'
 only_test: False
 metric: 'val_loss'
 batch_norm_sync: False
-multiscale: 0
 resume: False
 pretrained_head: False
 verbose: False
 track_epoch: False
-freq: 10
+verbose_freq: 10
 
 defaults:
   - dataset: coco
   - backbone : darknet53
   - yolo: head 
   - optimizer: sgd
-  - scheduler: step  
+  - scheduler: step 
+  - multiscaler: ms
   - experiment: experiment
   - hydra/launcher: basic 
     
