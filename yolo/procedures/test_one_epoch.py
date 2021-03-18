@@ -12,8 +12,6 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
     results = []
     dset_name = dataloader.dset_name
     torch.backends.cudnn.benchmark = True
-    print(inp_dim)
-    print(yolo_loss.img_size)
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(dataloader):
             # measure data loading time

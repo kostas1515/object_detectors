@@ -1,5 +1,5 @@
 # @package _group_
-root : "../../../datasets/coco/images"
+root : "../../../datasets/coco/"
 train_annotations : "../../../datasets/lvis/data/lvis_v1_train.json"
 val_annotations : "../../../datasets/lvis/data/lvis_v1_val.json"
 dset_name : "lvis"

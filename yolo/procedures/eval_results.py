@@ -81,7 +81,11 @@ def eval_results(results,dset_name,validation_path):
 
     if dset_name=='coco':
         cocoGt=COCO(validation_path)
-        cocoDt=cocoGt.loadRes(resFile)
+        try:
+            cocoDt=cocoGt.loadRes(resFile)
+        except IndexError:
+            print('empty list return zero map')
+            return 0
         cocoDt.loadAnns()
 
         #  running evaluation

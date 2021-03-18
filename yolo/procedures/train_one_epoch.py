@@ -12,7 +12,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 
 
-def multiscale(imgs,criterion,cfg):
+def get_new_scale(cfg):
     imgsz = cfg.dataset.inp_dim
     bounds = cfg.multiscaler.bounds
     cs = imgsz // 32
@@ -20,16 +20,10 @@ def multiscale(imgs,criterion,cfg):
     ub=math.floor(imgsz*bounds[1]/32)
     sf = random.randrange(lb,ub)
     sf=torch.tensor([sf],device='cuda')
-    if cfg.multiscaler.broadcast is True:
+    if (cfg.multiscaler.broadcast is True):
         dist.broadcast(sf,0)
-    sf=sf.item()
-    if sf != cs:
-        imgs = F.interpolate(imgs, size=sf*32, mode='bilinear', align_corners=False)
-        criterion.set_img_size(sf*32)
-    else:
-        criterion.set_img_size(imgsz)
-    return imgs
-    
+    new_scale=sf.item() * 32
+    return new_scale
 
 
 
@@ -60,6 +54,7 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
     counter = 0
     metrics = torch.zeros(6,device='cuda')
     stats = torch.zeros(5,device='cuda')
+    new_scale = cfg.dataset.inp_dim
     for imgs,targets in dataloader:
         if imgs is not None:
             for param in model.parameters():
@@ -68,7 +63,10 @@ def train_one_epoch(dataloader,model,optimizer,yolo_loss,epoch,cfg):
             imgs=imgs.to('cuda',non_blocking=True)
             if cfg.multiscaler.freq>0:
                 if(counter % cfg.multiscaler.freq)==0:
-                    imgs = multiscale(imgs,yolo_loss,cfg)
+                    new_scale = get_new_scale(cfg)
+                    yolo_loss.set_img_size(new_scale)
+                if(new_scale!=cfg.dataset.inp_dim):
+                    imgs = F.interpolate(imgs, size=new_scale, mode='bilinear', align_corners=False)
             targets = [{k: v.to('cuda',non_blocking=True) for k, v in t.items()} for t in targets]
             #forw
             out=model(imgs)

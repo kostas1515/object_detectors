@@ -20,7 +20,7 @@ import math
 
 
 
-def setup(rank, world_size):
+def setup(rank, cfg):
     """Initializes distributed process group.
     Arguments:
         rank: the rank of the current process.
@@ -28,8 +28,8 @@ def setup(rank, world_size):
         backend: the backend used for distributed processing.
     """
     os.environ["MASTER_ADDR"] = 'localhost'
-    os.environ["MASTER_PORT"] = "1234"
-    dist.init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
+    os.environ["MASTER_PORT"] = cfg.master_port
+    dist.init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=cfg.gpus)
 
 
 def cleanup():
@@ -40,6 +40,7 @@ def cleanup():
 @hydra.main(config_path="hydra",config_name="config")
 def main(cfg: DictConfig) -> None:
     os.environ['owd'] = hydra.utils.get_original_cwd()
+    cfg.master_port=str(cfg.master_port)
     mp.spawn(pipeline, nprocs=cfg.gpus, args=(cfg,), join=True)
 
 def get_logger():
@@ -53,7 +54,7 @@ def get_logger():
     return log
 
 def pipeline(rank,cfg):
-    setup(rank, cfg.gpus)
+    setup(rank, cfg)
     torch.cuda.set_device(rank)
     cfg.rank=rank
     dset_config=cfg['dataset']
