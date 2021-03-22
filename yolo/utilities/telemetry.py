@@ -97,7 +97,9 @@ class Telemetry():
         im = img2show.copy()
 
         bbox=self.targets[k]['bbox'].cuda()*self.img_size
-        cords=helper.get_abs_coord(bbox)      
+        cords=helper.get_abs_coord(bbox)
+        labels = self.targets[k]['category_id'].cpu().numpy()
+        k=0
         for cord in cords:
             pt1, pt2 = (cord[0], cord[1]), (cord[2], cord[3])
             
@@ -105,6 +107,9 @@ class Telemetry():
             pt2 = int(pt2[0]), int(pt2[1])
             
             im = cv2.rectangle(im.copy(), pt1, pt2, color, linelen)
+            lb= self.get_category_name(labels[k])
+            im = cv2.putText(im.copy(), lb, pt1, 0, 1e-3 * self.img_size, color, linelen//2)
+            k=k+1
         
         io.imshow(im)
 
@@ -188,7 +193,9 @@ class Telemetry():
 
         im = img2show.copy()
         
-        cords=pred_final.clone().cpu().numpy()        
+        cords=pred_final.clone().cpu().numpy()
+        labels = (pred_final[:,5:].max(axis=1)[1]).cpu().numpy()
+        k=0
         for cord in cords:
             pt1, pt2 = (cord[0], cord[1]), (cord[2], cord[3])
             
@@ -196,5 +203,8 @@ class Telemetry():
             pt2 = int(pt2[0]), int(pt2[1])
             
             im = cv2.rectangle(im.copy(), pt1, pt2, color, linelen)
+            lb= self.get_category_name(labels[k])
+            im = cv2.putText(im.copy(), lb, pt1, 0, 1e-3 * self.img_size, color, linelen//2)
+            k=k+1
         
         io.imshow(im)
