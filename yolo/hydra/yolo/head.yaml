@@ -18,3 +18,4 @@ class_loss: 1 # 0 for bce, 1 for ce
 reduction: 'sum'
 inf_confidence: 0.5
 inf_iou_threshold: 0.5
+tfidf: false

@@ -81,7 +81,7 @@ def pipeline(rank,cfg):
     train_loader,test_loader = get_dataloaders(cfg)      
     
     #criterion
-    criterion = YOLOForw(cfg['yolo']).cuda()
+    criterion = YOLOForw(cfg).cuda()
 
     epochs=100
     batch_loss = torch.zeros(1,device='cuda')

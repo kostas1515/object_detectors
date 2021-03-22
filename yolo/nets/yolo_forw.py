@@ -3,14 +3,16 @@ from torch._C import device
 import torch.nn as nn
 import numpy as np
 import math
+import os
 from utilities import custom, helper
 
 from torchvision.ops import boxes
 
 
 class YOLOForw(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, config):
         super(YOLOForw, self).__init__()
+        cfg=config.yolo
         self.anchors = cfg['anchors']
         self.num_anchors = len(self.anchors)
         self.num_classes = cfg['classes']
@@ -35,11 +37,17 @@ class YOLOForw(nn.Module):
         self.pobj_loss = custom.FocalLoss(self.pobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
         self.nobj_loss = nn.BCEWithLogitsLoss(reduction = "None")
         self.nobj_loss = custom.FocalLoss(self.nobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
-        
-        if cfg.class_loss==0:
-            self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction)
+
+        if cfg.tfidf is True:
+            self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
+            weights = self.idf.idf_weights
         else:
-            self.class_loss = nn.CrossEntropyLoss(reduction = self.reduction)
+            weights = torch.ones(self.num_classes,device=self.device)
+
+        if cfg.class_loss==0:
+            self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
+        else:
+            self.class_loss = nn.CrossEntropyLoss(reduction = self.reduction,weight=weights)
 
 
     def forward(self, input, targets=None):
@@ -90,6 +98,12 @@ class YOLOForw(nn.Module):
             no_obj = raw_pred[noobj_mask][:,4]
 
             neg_conf_loss = self.lambda_no_conf * self.nobj_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
+
+            if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
+                class_loss = self.lambda_cls * self.class_loss(final[:,5:],tcls)
+            elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
+                class_loss = self.lambda_cls * self.class_loss(final[:,5:], tcls.max(axis=1)[1])
+
             if self.reduction =="sum":
                 iou_loss = self.lambda_iou *  (1 - iou).sum()
                 neg_conf_loss = neg_conf_loss.sum()
@@ -97,10 +111,7 @@ class YOLOForw(nn.Module):
                 iou_loss = self.lambda_iou *  (1 - iou).mean()
                 neg_conf_loss = neg_conf_loss.mean()
             
-            if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-                class_loss = self.lambda_cls * self.class_loss(final[:,5:],tcls)
-            elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
-                class_loss = self.lambda_cls * self.class_loss(final[:,5:], tcls.max(axis=1)[1])
+            
 
             loss = loss_xy + loss_wh + iou_loss + pos_conf_loss + neg_conf_loss + class_loss
 

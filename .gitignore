@@ -9,3 +9,5 @@ yolo/*.zip
 *.pth
 yolo/batch_files/*
 yolo/notebooks/*
+yolo/coco_files/*
+yolo/lvis_files/*

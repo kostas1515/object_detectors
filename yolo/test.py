@@ -36,7 +36,7 @@ def main(cfg: DictConfig) -> None:
     train_loader,test_loader = get_dataloaders(cfg)           
 
     #criterion
-    criterion = YOLOForw(cfg['yolo'])
+    criterion = YOLOForw(cfg)
     epochs=1
     batch_loss = torch.zeros(1)
     for i in range(epochs):
