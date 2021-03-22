@@ -7,7 +7,7 @@ from collections import OrderedDict
 from apex.parallel import DistributedDataParallel as DDP
 from apex import amp
 import time
-
+import apex
 
 def save_model(model,optimizer,scheduler,metrics,epoch,name):
     if not os.path.exists('checkpoints/'):
@@ -29,7 +29,7 @@ def get_model(cfg):
     model = YoloHead(cfg)
     model = model.cuda(cfg.rank)
     if cfg.batch_norm_sync is True:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        model = apex.parallel.convert_syncbn_model(model)
     epoch = 0
     metrics={'mAP':None,'val_loss':None}
     optimizer = None
