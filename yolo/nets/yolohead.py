@@ -1,4 +1,5 @@
 import torch
+from torch._C import device
 import torch.nn as nn
 from collections import OrderedDict
 import os
@@ -6,6 +7,7 @@ import hydra
 import time
 
 from .backbone import backbone_fn
+from  utilities.custom import FPN
 
 
 class YoloHead(nn.Module):
@@ -33,6 +35,13 @@ class YoloHead(nn.Module):
         self.embedding2_cbl = self._make_cbl(256, 128, 1)
         self.embedding2_upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.embedding2 = self._make_embedding([128, 256], _out_filters[-3] + 128, final_out_filter2)
+        if config.yolo.fpn is True:
+            self.do_fpn=True
+            # self.fpn0 = FPN(1024,device='cuda')
+            self.fpn1 = FPN(512,device='cuda')
+            self.fpn2 = FPN(256,device='cuda')
+        else:
+            self.do_fpn=False
 
     def _make_cbl(self, _in, _out, ks):
         ''' cbl = conv + batch_norm + leaky_relu
@@ -65,6 +74,12 @@ class YoloHead(nn.Module):
             return _in, out_branch
         #  backbone
         x2, x1, x0 = self.backbone(x)
+
+        if self.do_fpn is True:
+            (_, _, x2) = self.fpn2((x0, x1, x2)) #256
+            (_, x1, _) = self.fpn1((x0, x1, x2)) #512
+            # (x0, _, _) = self.fpn0((x0, x1, x2)) #1024
+
         #  yolo branch 0
         out0, out0_branch = _branch(self.embedding0, x0)
         #  yolo branch 1

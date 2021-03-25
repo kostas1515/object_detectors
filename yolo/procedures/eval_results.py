@@ -97,8 +97,11 @@ def eval_results(results,dset_name,validation_path):
         mAP=cocoEval.stats[0]
 
     elif(dset_name=='lvis'):
-    
-        lvis_eval = LVISEval(validation_path, resFile, 'bbox')
+        try:
+            lvis_eval = LVISEval(validation_path, resFile, 'bbox')
+        except IndexError:
+            print('empty list return zero map')
+            return 0
         lvis_eval.run()
         metrics=lvis_eval.get_results()
         lvis_eval.print_results()

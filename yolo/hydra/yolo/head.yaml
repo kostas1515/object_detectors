@@ -19,3 +19,4 @@ reduction: 'sum'
 inf_confidence: 0.1
 inf_iou_threshold: 0.6
 tfidf: false
+fpn: false

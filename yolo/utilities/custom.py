@@ -1,5 +1,5 @@
 # Loss functions
-
+from typing import OrderedDict
 import torch
 import torch.nn as nn
 from pycocotools.coco import COCO
@@ -10,6 +10,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from tqdm import tqdm
 import os
 import pandas as pd
+from torchvision.ops import FeaturePyramidNetwork 
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
     # return positive, negative label smoothing BCE targets
@@ -191,3 +192,18 @@ class IDFTransformer():
         weights=torch.tensor(weights,device = self.device)
 
         return weights
+
+class FPN(nn.Module):
+    def __init__(self,channels,device='cuda'):
+        super(FPN, self).__init__()
+        self.m =FeaturePyramidNetwork([256, 512, 1024], channels).to(device)
+    
+    def forward(self, layers):
+        x = OrderedDict()
+        x['feat0'] = layers[2]
+        x['feat1'] = layers[1]
+        x['feat2'] = layers[0]
+        mx = self.m(x)
+        out=(mx['feat2'],mx['feat1'],mx['feat0'])
+
+        return out

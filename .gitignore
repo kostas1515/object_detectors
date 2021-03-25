@@ -11,3 +11,12 @@ yolo/batch_files/*
 yolo/notebooks/*
 yolo/coco_files/*
 yolo/lvis_files/*
+
+torchvision_models/cfg/*
+torchvision_models/output/*
+torchvision_models/slurm/*
+torchvision_models/checkpoints/*
+torchvision_models/batch_files/*
+torchvision_models/notebooks/*
+torchvision_models/coco_files/*
+torchvision_models/lvis_files/*
