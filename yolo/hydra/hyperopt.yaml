@@ -24,7 +24,7 @@ defaults:
   - hp_optim: opt1
   - multiscaler: ms
   - hydra/sweeper: ax
-  - hydra/launcher: joblib
+  - hydra/launcher: basic
 
     
 
@@ -35,8 +35,8 @@ hydra:
   sweep:
     dir: output/${experiment.name}
     subdir: ./
-  launcher:
-    n_jobs: ${gpus}
+  # launcher:
+  #   n_jobs: ${gpus}
 
 
 

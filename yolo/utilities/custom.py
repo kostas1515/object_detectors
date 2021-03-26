@@ -177,11 +177,14 @@ class IDFTransformer():
             df['idf_weights']= self.idf_transformer.idf_
             df.to_csv(os.path.join(idf_path,'idf.csv'))
             self.idf_weights = torch.tensor(self.idf_transformer.idf_,dtype=torch.float,device=self.device)
+            weight_norm = torch.norm(self.idf_weights)
+            self.idf_weights = self.idf_weights / weight_norm
         else:
             df=pd.read_csv(os.path.join(idf_path,'idf.csv'))
             weights=np.array(df['idf_weights'])
             self.idf_weights = torch.tensor(weights,dtype=torch.float,device=self.device)
-
+            weight_norm = torch.norm(self.idf_weights)
+            self.idf_weights = self.idf_weights / weight_norm
 
 
     def __call__(self,target_classes): 
