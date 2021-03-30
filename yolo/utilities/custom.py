@@ -118,9 +118,13 @@ class ClassAttention(nn.Module):
         return class_attention
 
 
-class IDFTransformer():
-    def __init__(self,annfile,dset_name,device='cuda'):
+class IDFTransformer(nn.Module):
+    def __init__(self,annfile,dset_name,device='cuda',reduce='sum',reduce_mini_batch=True):
+        super(IDFTransformer, self).__init__()
         cwd = os.getenv('owd')
+        self.reduce=reduce
+        self.reduce_mini_batch = reduce_mini_batch
+        self.loss = nn.BCELoss(reduction=reduce)
         annfile = os.path.join(cwd,annfile)
         idf_path = dset_name+"_files"
         idf_path = os.path.join(cwd,idf_path)
@@ -177,24 +181,33 @@ class IDFTransformer():
             df['idf_weights']= self.idf_transformer.idf_
             df.to_csv(os.path.join(idf_path,'idf.csv'))
             self.idf_weights = torch.tensor(self.idf_transformer.idf_,dtype=torch.float,device=self.device)
-            weight_norm = torch.norm(self.idf_weights)
-            self.idf_weights = self.idf_weights / weight_norm
+            self.idf_weight_norm = torch.norm(self.idf_weights)
         else:
             df=pd.read_csv(os.path.join(idf_path,'idf.csv'))
             weights=np.array(df['idf_weights'])
             self.idf_weights = torch.tensor(weights,dtype=torch.float,device=self.device)
-            weight_norm = torch.norm(self.idf_weights)
-            self.idf_weights = self.idf_weights / weight_norm
+            self.num_classes = self.idf_weights.shape[0]
+            self.idf_weight_norm = torch.norm(self.idf_weights)
 
 
-    def __call__(self,target_classes): 
-        target_classes=target_classes.cpu().numpy()
-        tc= np.bincount(target_classes,minlength=self.num_classes)
-        res = self.idf_transformer.transform(tc.reshape(1,-1))
-        weights = np.squeeze(res.A)[target_classes]
-        weights=torch.tensor(weights,device = self.device)
+    def forward(self,raw_pred,targets):
+        reduce_mini_batch=self.reduce_mini_batch
+        tensor=torch.stack([torch.bincount(t['category_id'],minlength=self.num_classes) for t in targets])
+        if reduce_mini_batch is True:
+            tensor = tensor.sum(axis=0)
+        idf_w = self.idf_weights.unsqueeze(0)
+        transformed_tensor= tensor * idf_w
+        transformed_tensor = transformed_tensor/torch.norm(transformed_tensor,dim=1).unsqueeze(1)
+        classes=torch.softmax(raw_pred[...,5:],dim=2)
+        class_bias = classes.mean(axis=1)
+        if reduce_mini_batch is True:
+            class_bias = class_bias.sum(axis=0).unsqueeze(0)
+        class_bias = class_bias/torch.norm(class_bias,dim=1).unsqueeze(1)
 
-        return weights
+        return self.loss(class_bias,transformed_tensor)
+    
+
+    
 
 class FPN(nn.Module):
     def __init__(self,channels,device='cuda'):

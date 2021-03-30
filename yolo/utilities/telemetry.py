@@ -22,7 +22,7 @@ class Telemetry():
         self.bbox_attrs=self.num_classes+5
         self.num_anchors=len(self.anchors)
         self.true_pred=[]
-        with open('./coco_files/coco.names') as f:
+        with open('../coco_files/coco.names') as f:
             self.coco_names=f.readlines()
             self.coco_names=[c.rstrip() for c in self.coco_names]
 

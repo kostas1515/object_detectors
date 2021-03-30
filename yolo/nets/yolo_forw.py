@@ -37,12 +37,15 @@ class YOLOForw(nn.Module):
         self.pobj_loss = custom.FocalLoss(self.pobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
         self.nobj_loss = nn.BCEWithLogitsLoss(reduction = "None")
         self.nobj_loss = custom.FocalLoss(self.nobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
+        weights = torch.ones(self.num_classes,device=self.device)
+        self.tfidf_regularization=False
 
-        if cfg.tfidf is True:
+        if sum(cfg.tfidf) > 0:
             self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
-            weights = self.idf.idf_weights
-        else:
-            weights = torch.ones(self.num_classes,device=self.device)
+            if cfg.tfidf[0]==1:
+                weights = self.idf.idf_weights
+            if cfg.tfidf[1]==1:
+                self.tfidf_regularization=True
 
         if cfg.class_loss==0:
             self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
@@ -111,15 +114,18 @@ class YOLOForw(nn.Module):
                 iou_loss = self.lambda_iou *  (1 - iou).mean()
                 neg_conf_loss = neg_conf_loss.mean()
             
-            
+            if self.tfidf_regularization is True:
+                idf_loss = self.idf(raw_pred,targets)
+            else:
+                idf_loss = 0
 
-            loss = loss_xy + loss_wh + iou_loss + pos_conf_loss + neg_conf_loss + class_loss
+            loss = loss_xy + loss_wh + iou_loss + pos_conf_loss + neg_conf_loss + class_loss + idf_loss
 
             #stats
             stats=self.get_stats(true_pred,iou,no_obj,tcls)
             sub_losses=torch.stack([loss_xy.detach().clone(),loss_wh.detach().clone(),
                                     iou_loss.detach().clone(),pos_conf_loss.detach().clone(),
-                                    neg_conf_loss.detach().clone(),class_loss.detach().clone()])
+                                    neg_conf_loss.detach().clone(),(class_loss+idf_loss).detach().clone()])
                                     
             if self.reduction =="sum":
                 loss = loss / gt.shape[0]

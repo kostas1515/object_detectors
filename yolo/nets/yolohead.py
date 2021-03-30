@@ -35,7 +35,7 @@ class YoloHead(nn.Module):
         self.embedding2_cbl = self._make_cbl(256, 128, 1)
         self.embedding2_upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.embedding2 = self._make_embedding([128, 256], _out_filters[-3] + 128, final_out_filter2)
-        if config.yolo.fpn is True:
+        if config['yolo']['fpn'] is True:
             self.do_fpn=True
             # self.fpn0 = FPN(1024,device='cuda')
             self.fpn1 = FPN(512,device='cuda')

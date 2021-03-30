@@ -29,30 +29,30 @@ ax_config:
     yolo.iou_type:
       type: choice 
       values : [1,2,3]
+    yolo.lambda_cls:
+      type: range
+      bounds: [5.0, 20.0]
     yolo.class_loss:
       type: choice 
       values : [0,1]
-    yolo.ignore_threshold:
-      type: range
-      bounds: [0.1, 0.9]
-    yolo.lambda_conf:
-      type: range
-      bounds: [0.0, 2.0]
-    yolo.lambda_no_conf:
-      type: range
-      bounds: [0.0, 1]
-    yolo.lambda_cls:
-      type: range
-      bounds: [0.1, 2.0]
-    yolo.alpha:
-      type: range
-      bounds: [0.0, 1.0]
-    yolo.gamma:
-      type: range
-      bounds: [0.0, 3.0]
-    # optimizer.weight_decay:
+    # yolo.ignore_threshold:
     #   type: range
-    #   bounds: [0.0,0.01]
+    #   bounds: [0.1, 0.9]
+    # yolo.lambda_conf:
+    #   type: range
+    #   bounds: [0.0, 2.0]
+    # yolo.lambda_no_conf:
+    #   type: range
+    #   bounds: [0.0, 1]
+    # yolo.alpha:
+    #   type: range
+    #   bounds: [0.0, 1.0]
+    # yolo.gamma:
+    #   type: range
+    #   bounds: [0.0, 3.0]
+    optimizer.weight_decay:
+      type: range
+      bounds: [0.0,0.001]
     # multiscaler.broadcast:
     #   type: choice 
     #   values : [True,False]
