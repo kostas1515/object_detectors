@@ -10,6 +10,7 @@ import torch.utils.data
 from torch.utils.data.sampler import BatchSampler, Sampler
 from torch.utils.model_zoo import tqdm
 import torchvision
+import lvis_dataset
 
 from PIL import Image
 
@@ -139,6 +140,18 @@ def _compute_aspect_ratios_coco_dataset(dataset, indices=None):
     return aspect_ratios
 
 
+def _compute_aspect_ratios_lvis_dataset(dataset, indices=None):
+    if indices is None:
+        indices = range(len(dataset))
+    aspect_ratios = []
+    for i in indices:
+        img_info = dataset.lvis.imgs[dataset.ids[i]]
+        aspect_ratio = float(img_info["width"]) / float(img_info["height"])
+        aspect_ratios.append(aspect_ratio)
+    return aspect_ratios
+    
+
+
 def _compute_aspect_ratios_voc_dataset(dataset, indices=None):
     if indices is None:
         indices = range(len(dataset))
@@ -165,6 +178,9 @@ def compute_aspect_ratios(dataset, indices=None):
 
     if isinstance(dataset, torchvision.datasets.CocoDetection):
         return _compute_aspect_ratios_coco_dataset(dataset, indices)
+
+    if isinstance(dataset, lvis_dataset.LVISDetection):
+        return _compute_aspect_ratios_lvis_dataset(dataset, indices)
 
     if isinstance(dataset, torchvision.datasets.VOCDetection):
         return _compute_aspect_ratios_voc_dataset(dataset, indices)

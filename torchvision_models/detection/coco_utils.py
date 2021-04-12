@@ -8,8 +8,8 @@ import torchvision
 
 from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO
-
 import transforms as T
+import lvis_dataset
 
 
 class FilterAndRemapCocoCategories(object):
@@ -55,8 +55,10 @@ class ConvertCocoPolysToMask(object):
         image_id = torch.tensor([image_id])
 
         anno = target["annotations"]
-
-        anno = [obj for obj in anno if obj['iscrowd'] == 0]
+        try:
+            anno = [obj for obj in anno if obj['iscrowd'] == 0]
+        except KeyError:
+            pass
 
         boxes = [obj["bbox"] for obj in anno]
         # guard against no boxes via resizing
@@ -96,7 +98,10 @@ class ConvertCocoPolysToMask(object):
 
         # for conversion to coco api
         area = torch.tensor([obj["area"] for obj in anno])
-        iscrowd = torch.tensor([obj["iscrowd"] for obj in anno])
+        try:
+            iscrowd = torch.tensor([obj["iscrowd"] for obj in anno])
+        except KeyError:
+            iscrowd = torch.tensor([0 for obj in anno])
         target["area"] = area
         target["iscrowd"] = iscrowd
 
@@ -128,19 +133,34 @@ def _coco_remove_images_without_annotations(dataset, cat_list=None):
         if _count_visible_keypoints(anno) >= min_keypoints_per_image:
             return True
         return False
+    if isinstance(dataset, torchvision.datasets.CocoDetection):
+        ids = []
+        for ds_idx, img_id in enumerate(dataset.ids):
+            ann_ids = dataset.coco.getAnnIds(imgIds=img_id, iscrowd=None)
+            anno = dataset.coco.loadAnns(ann_ids)
+            if cat_list:
+                anno = [obj for obj in anno if obj["category_id"] in cat_list]
+            if _has_valid_annotation(anno):
+                ids.append(ds_idx)
 
-    assert isinstance(dataset, torchvision.datasets.CocoDetection)
-    ids = []
-    for ds_idx, img_id in enumerate(dataset.ids):
-        ann_ids = dataset.coco.getAnnIds(imgIds=img_id, iscrowd=None)
-        anno = dataset.coco.loadAnns(ann_ids)
-        if cat_list:
-            anno = [obj for obj in anno if obj["category_id"] in cat_list]
-        if _has_valid_annotation(anno):
-            ids.append(ds_idx)
+        dataset = torch.utils.data.Subset(dataset, ids)
+        return dataset
+    elif isinstance(dataset, lvis_dataset.LVISDetection):
+        ids = []
+        for ds_idx, img_id in enumerate(dataset.ids):
+            ann_ids = dataset.lvis.get_ann_ids([img_id])
+            anno = dataset.lvis.load_anns(ann_ids)
+            if cat_list:
+                anno = [obj for obj in anno if obj["category_id"] in cat_list]
+            if _has_valid_annotation(anno):
+                ids.append(ds_idx)
 
-    dataset = torch.utils.data.Subset(dataset, ids)
-    return dataset
+        dataset = torch.utils.data.Subset(dataset, ids)
+        return dataset
+    else:
+        print("can't recognise dataset")
+        assert isinstance(dataset, torchvision.datasets.CocoDetection)
+
 
 
 def convert_to_coco_api(ds):
@@ -219,6 +239,18 @@ class CocoDetection(torchvision.datasets.CocoDetection):
             img, target = self._transforms(img, target)
         return img, target
 
+class LVISDetection(lvis_dataset.LVISDetection):
+    def __init__(self, img_folder, ann_file, transforms):
+        super(LVISDetection, self).__init__(img_folder, ann_file)
+        self._transforms = transforms
+
+    def __getitem__(self, idx):
+        img, target = super(LVISDetection, self).__getitem__(idx)
+        image_id = self.ids[idx]
+        target = dict(image_id=image_id, annotations=target)
+        if self._transforms is not None:
+            img, target = self._transforms(img, target)
+        return img, target
 
 def get_coco(root, image_set, transforms, mode='instances'):
     anno_file_template = "{}_{}2017.json"
@@ -244,6 +276,30 @@ def get_coco(root, image_set, transforms, mode='instances'):
         dataset = _coco_remove_images_without_annotations(dataset)
 
     # dataset = torch.utils.data.Subset(dataset, [i for i in range(500)])
+
+    return dataset
+
+def get_lvis(root, image_set, transforms, mode='lvis_v1'):
+    anno_file_template = "{}_{}.json"
+    PATHS = {
+        "train": ("train2017", os.path.join("annotations", anno_file_template.format(mode, "train"))),
+        "val": ("val2017", os.path.join("annotations", anno_file_template.format(mode, "val"))),
+        # "train": ("val2017", os.path.join("annotations", anno_file_template.format(mode, "val")))
+    }
+
+    t = [ConvertCocoPolysToMask()]
+
+    if transforms is not None:
+        t.append(transforms)
+    transforms = T.Compose(t)
+
+    img_folder, ann_file = PATHS[image_set]
+    img_folder = os.path.join(root, img_folder)
+    ann_file = os.path.join(root, ann_file)
+
+    dataset = LVISDetection(img_folder, ann_file, transforms=transforms)
+    if image_set == "train":
+        dataset = _coco_remove_images_without_annotations(dataset)
 
     return dataset
 

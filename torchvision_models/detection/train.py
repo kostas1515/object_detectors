@@ -30,20 +30,21 @@ import torchvision
 import torchvision.models.detection
 import torchvision.models.detection.mask_rcnn
 
-from detection.coco_utils import get_coco, get_coco_kp
+from detection.coco_utils import get_coco, get_coco_kp, get_lvis
 
 from detection.group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
 from detection.engine import train_one_epoch, evaluate
 
 import detection.presets as presets
 import detection.utils as utils
-from tvision import frcnn,retinanet
+from tvision import frcnn,retinanet,mask_rcnn
 from tvision.frcnn import FastRCNNPredictor
 
 
 def get_dataset(name, image_set, transform, data_path):
     paths = {
         "coco": (data_path, get_coco, 91),
+        "lvis": (data_path, get_lvis, 1204),
         "coco_kp": (data_path, get_coco_kp, 2)
     }
     p, ds_fn, num_classes = paths[name]
@@ -103,6 +104,8 @@ def main(args):
         model = frcnn.fasterrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
     elif args.model == 'retinanet_resnet50_fpn':
         model = retinanet.retinanet_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
+    elif args.model == 'maskrcnn_resnet50_fpn':
+        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
 
 
     # model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,

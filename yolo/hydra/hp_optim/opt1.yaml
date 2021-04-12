@@ -8,7 +8,7 @@ ax_config:
 
   experiment:
     # Default to minimize, set to false to maximize
-    minimize: ${minimize}
+    minimize: False
 
   early_stop:
     # Number of epochs without a significant improvement from
