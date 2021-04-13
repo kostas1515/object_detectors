@@ -13,7 +13,7 @@ class YOLOForw(nn.Module):
     def __init__(self, config):
         super(YOLOForw, self).__init__()
         cfg=config.yolo
-        self.anchors = cfg['anchors']
+        self.anchors = config.dataset['anchors']
         self.num_anchors = len(self.anchors)
         self.num_classes = cfg['classes']
         self.bbox_attrs = 5 + self.num_classes

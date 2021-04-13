@@ -3,6 +3,12 @@ root : "../../../datasets/coco/"
 train_annotations : "../../../datasets/lvis/data/lvis_v1_train.json"
 val_annotations : "../../../datasets/lvis/data/lvis_v1_val.json"
 dset_name : "lvis"
+anchors: [[[155.78819651,244.03609716],[320.272707,116.94313185],
+          [293.30877626,232.00399174]],
+         [[ 56.46791643,96.62934705],[ 89.66263185,59.3598243 ],
+          [127.82328124,40.61556824]],
+         [[13.5255288,23.31384949],[31.50078774,9.86228439],
+          [20.81998901,13.66625921]]]
 inp_dim : 416
 augment: 0
 num_classes : 1203

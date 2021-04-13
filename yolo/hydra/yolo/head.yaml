@@ -1,7 +1,4 @@
 # @package _group_
-anchors: [[[116, 90], [156, 198], [373, 326]],
-           [[30, 61], [62, 45], [59, 119]],
-           [[10, 13], [16, 30], [33, 23]]]
 img_size: ${dataset.inp_dim}
 classes: ${dataset.num_classes}
 ignore_threshold : 0.5

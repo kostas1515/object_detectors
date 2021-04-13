@@ -3,6 +3,9 @@ root : "../../../datasets/coco/"
 train_annotations : "../../../datasets/coco/annotations/instances_train2017.json"
 val_annotations : "../../../datasets/coco/annotations/instances_val2017.json"
 dset_name : "coco"
+anchors: [[[116, 90], [156, 198], [373, 326]],
+           [[30, 61], [62, 45], [59, 119]],
+           [[10, 13], [16, 30], [33, 23]]]
 augment: 0
 inp_dim : 416
 num_classes : 80
