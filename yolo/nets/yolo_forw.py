@@ -67,12 +67,11 @@ class YOLOForw(nn.Module):
             stride_w = self.img_size / in_w
             scaled_anchors = torch.tensor([(a_w / stride_w, a_h / stride_h) for a_w, a_h in self.anchors[k]],device=self.device)
             # no_obj_conf_weights.append((4**(2-k))*torch.ones([in_h*in_w*scaled_anchors.shape[0]],device=self.device))
-
-            prediction = input.view(bs,3,self.bbox_attrs, in_h, in_w).permute(0, 3, 4, 1, 2).contiguous()
+            prediction = input.view(bs,scaled_anchors.shape[0],self.bbox_attrs, in_h, in_w).permute(0, 3, 4, 1, 2).contiguous()
             # prediction = prediction.permute(0,2,3,1, 4).contiguous()
             prediction = torch.reshape(prediction,[bs,-1,self.bbox_attrs]).contiguous()
-            grid_x = torch.linspace(0, in_w-1, in_w,device=self.device).repeat(in_w, 1).repeat(3, 1, 1).permute(1,2,0) + 0.5
-            grid_y = torch.linspace(0, in_h-1, in_h,device=self.device).repeat(in_h, 1).t().repeat(3, 1, 1).permute(1,2,0) + 0.5
+            grid_x = torch.linspace(0, in_w-1, in_w,device=self.device).repeat(in_w, 1).repeat(scaled_anchors.shape[0], 1, 1).permute(1,2,0) + 0.5
+            grid_y = torch.linspace(0, in_h-1, in_h,device=self.device).repeat(in_h, 1).t().repeat(scaled_anchors.shape[0], 1, 1).permute(1,2,0) + 0.5
             grid_x=torch.reshape(grid_x,[-1])/in_w
             grid_y=torch.reshape(grid_y,[-1])/in_h
             anchor_w = scaled_anchors[:,0]/in_w

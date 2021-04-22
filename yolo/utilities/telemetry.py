@@ -9,8 +9,19 @@ import numpy as np
 class Telemetry():
 
 
-    def __init__(self,net_out,image,targets,num_classes=80):
-
+    def __init__(self,net_out,image,targets,dset_name='coco'):
+        
+        if dset_name=='coco':
+            with open('../coco_files/coco.names') as f:
+                self.class_names=f.readlines()
+                self.class_names=[c.rstrip() for c in self.class_names]
+                self.num_classes=80
+        elif dset_name=='lvis':
+            with open('../lvis_files/lvis.names') as f:
+                self.class_names=f.readlines()
+                self.class_names=[c.rstrip() for c in self.class_names]
+                self.num_classes=1203
+                
         self.image = image
         self.img_size=image.shape[-1]
         self.out = [n.detach() for n in net_out]
@@ -18,14 +29,12 @@ class Telemetry():
         self.anchors =[[[116, 90], [156, 198], [373, 326]],
                         [[30, 61], [62, 45], [59, 119]],
                         [[10, 13], [16, 30], [33, 23]]]
-        self.num_classes=num_classes
+        
         self.bbox_attrs=self.num_classes+5
         self.num_anchors=len(self.anchors)
         self.true_pred=[]
-        with open('../coco_files/coco.names') as f:
-            self.coco_names=f.readlines()
-            self.coco_names=[c.rstrip() for c in self.coco_names]
-
+        
+    
         for i in range(3):
             input=self.out[i]
             bs = input.size(0)
@@ -166,7 +175,7 @@ class Telemetry():
     
     def get_category_name(self,index):
 
-        return self.coco_names[index]
+        return self.class_names[index]
 
 
     def draw_bbs(self,k,confidence=0.1,iou_threshold=0.5,color = (0,0,0),linelen=1):
