@@ -723,6 +723,7 @@ class RoIHeads(torch.nn.Module):
 
             # non-maximum suppression, independently done per class
             keep = box_ops.batched_nms(boxes, scores, labels, self.nms_thresh)
+            
             # keep only topk scoring predictions
             keep = keep[:self.detections_per_img]
             boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
