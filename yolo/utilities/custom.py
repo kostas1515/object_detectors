@@ -2,6 +2,7 @@
 from typing import OrderedDict
 import torch
 import torch.nn as nn
+from torch.nn.functional import embedding
 from pycocotools.coco import COCO
 from lvis import LVIS
 import numpy as np
@@ -10,7 +11,8 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from tqdm import tqdm
 import os
 import pandas as pd
-from torchvision.ops import FeaturePyramidNetwork 
+from torchvision.ops import FeaturePyramidNetwork
+import math
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
     # return positive, negative label smoothing BCE targets
@@ -223,3 +225,39 @@ class FPN(nn.Module):
         out=(mx['feat2'],mx['feat1'],mx['feat0'])
 
         return out
+
+class SPP(nn.Module):
+    def __init__(self,embeddings_dim,device='cuda'):
+        super(SPP, self).__init__()
+        self.spp=[[],[],[]]
+        self.bottlenecks=[]
+        channels=[1024, 512, 256]
+        for k,e in enumerate(embeddings_dim):
+            bottl_inp_channels=(len(e)+1) *channels[k] # number of pyramids subdivision + the initial channels
+            for pyramid_size in e:
+                kernel = pyramid_size
+                padding = (kernel-1)//2
+                m=nn.MaxPool2d(kernel_size=kernel, stride=1,padding=padding)
+                m=m.to(device)
+                self.spp[k].append(m)
+            b = nn.Conv2d(bottl_inp_channels, channels[k], 1, stride=1)
+            b=b.to(device)
+            self.bottlenecks.append(b)
+
+
+    def forward(self, embeddings):
+        (x0,x1,x2) = embeddings
+
+        i0 = torch.cat([p(x0) for p in self.spp[0]],dim=1)
+        with torch.cuda.amp.autocast():
+            x0 = self.bottlenecks[0](torch.cat([x0,i0],dim=1))
+
+        i1 = torch.cat([p(x1) for p in self.spp[1]],dim=1)
+        with torch.cuda.amp.autocast():
+            x1 = self.bottlenecks[1](torch.cat([x1,i1],dim=1))
+
+        i2 = torch.cat([p(x2) for p in self.spp[2]],dim=1)
+        with torch.cuda.amp.autocast():
+            x2 = self.bottlenecks[2](torch.cat([x2,i2],dim=1))
+
+        return (x0,x1,x2)

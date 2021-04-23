@@ -16,7 +16,8 @@ verbose_freq: 10
 defaults:
   - dataset: coco
   - backbone : darknet53
-  - yolo: head 
+  - yolo: head
+  - neck: neck
   - optimizer: sgd
   - scheduler: step 
   - multiscaler: ms

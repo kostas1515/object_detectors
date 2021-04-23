@@ -1,0 +1,4 @@
+# @package _group_
+fpn: false
+spp: false
+pyramids: [[13,7,5],[25,13,9],[51,25,13]]

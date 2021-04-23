@@ -16,4 +16,3 @@ reduction: 'sum'
 inf_confidence: 0.1
 inf_iou_threshold: 0.6
 tfidf: [0,0] #[cost_learning,regularization]
-fpn: false
