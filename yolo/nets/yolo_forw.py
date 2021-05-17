@@ -40,12 +40,14 @@ class YOLOForw(nn.Module):
         weights = torch.ones(self.num_classes,device=self.device)
         self.tfidf_regularization=False
         self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
-
+        self.idf_logits=torch.tensor(1).cuda()
         if sum(cfg.tfidf) > 0:
             if cfg.tfidf[0]==1:
                 weights = self.idf.idf_weights
             if cfg.tfidf[1]==1:
                 self.tfidf_regularization=True
+            if cfg.tfidf[2]==1:
+                self.idf_logits=self.idf.idf_weights
 
         if cfg.class_loss==0:
             self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
@@ -102,9 +104,9 @@ class YOLOForw(nn.Module):
             neg_conf_loss = self.lambda_no_conf * self.nobj_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
 
             if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-                class_loss = self.lambda_cls * self.class_loss(self.idf.idf_weights.unsqueeze(0)*final[:,5:],tcls)
+                class_loss = self.lambda_cls * self.class_loss(self.idf_logits.unsqueeze(0)*final[:,5:],tcls)
             elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
-                class_loss = self.lambda_cls * self.class_loss(self.idf.idf_weights.unsqueeze(0)*final[:,5:], tcls.max(axis=1)[1])
+                class_loss = self.lambda_cls * self.class_loss(self.idf_logits.unsqueeze(0)*final[:,5:], tcls.max(axis=1)[1])
 
             if self.reduction =="sum":
                 iou_loss = self.lambda_iou *  (1 - iou).sum()
@@ -138,9 +140,9 @@ class YOLOForw(nn.Module):
             wh=torch.exp(raw_pred[...,2:4]) * cxypwh[:,2:4] * inw_inh * strides
             conf=torch.sigmoid(raw_pred[:,:,4:5])
             if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-                cls = torch.sigmoid(self.idf.idf_weights.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:])
+                cls = torch.sigmoid(self.idf_logits.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:])
             elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
-                cls = torch.softmax(self.idf.idf_weights.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:],axis=2)
+                cls = torch.softmax(self.idf_logits.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:],axis=2)
             output = torch.cat((xy,wh,conf,cls),axis=2)
 
             return output.data
