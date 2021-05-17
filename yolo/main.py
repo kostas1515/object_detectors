@@ -18,8 +18,6 @@ import random
 import math
 
 
-
-
 def setup(rank, cfg):
     """Initializes distributed process group.
     Arguments:

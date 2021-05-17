@@ -1,0 +1,16 @@
+# @package _group_
+root : "../../../datasets/drone_vs_bird/"
+train_annotations : "../../../datasets/drone_vs_bird/drones_train.json"
+val_annotations : "../../../datasets/drone_vs_bird/drones_val.json"
+dset_name : "drones"
+anchors: [[[116, 90], [156, 198], [373, 326]],
+           [[30, 61], [62, 45], [59, 119]],
+           [[10, 13], [16, 30], [33, 23]]]
+augment: 0
+inp_dim : 416
+num_classes : 1
+num_workers : 4
+tr_subset : 1
+ts_subset : 1
+tr_batch_size : 16
+ts_batch_size : 16

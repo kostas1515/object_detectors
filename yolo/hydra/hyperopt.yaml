@@ -5,7 +5,7 @@ gpus: 1
 rank: 0
 apex_opt: 'O2'
 only_test: False
-metric: 'val_loss'
+metric: 'mAP'
 job_id: ${hydra:job.num}
 batch_norm_sync: False
 minimize: False
@@ -19,12 +19,13 @@ defaults:
   - dataset: coco
   - backbone : darknet53
   - yolo: head 
-  - optimizer: sgd 
+  - optimizer: sgd
+  - neck: neck 
   - experiment: experiment
   - hp_optim: opt1
   - multiscaler: ms
   - hydra/sweeper: ax
-  - hydra/launcher: basic
+  - hydra/launcher: joblib
 
     
 
@@ -35,8 +36,8 @@ hydra:
   sweep:
     dir: output/${experiment.name}
     subdir: ./
-  # launcher:
-  #   n_jobs: ${gpus}
+  launcher:
+    n_jobs: ${gpus}
 
 
 

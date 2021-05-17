@@ -39,7 +39,7 @@ def eval_partial_results(epoch,dset_name,validation_path):
     json.dump(results, open(f'./bbox_results/{dset_name}/results_{epoch}.json', 'w'), indent=4)
     resFile=f'./bbox_results/{dset_name}/results_{epoch}.json'
 
-    if dset_name=='coco':
+    if (dset_name=='coco') | (dset_name=='drones'):
         cocoGt=COCO(validation_path)
         try:
             cocoDt=cocoGt.loadRes(resFile)
@@ -79,7 +79,7 @@ def eval_results(results,dset_name,validation_path):
     json.dump(results, open(f'./bbox_results/{dset_name}/results_{rid}.json', 'w'), indent=4)
     resFile=f'./bbox_results/{dset_name}/results_{rid}.json'
 
-    if dset_name=='coco':
+    if (dset_name=='coco') | (dset_name=='drones'):
         cocoGt=COCO(validation_path)
         try:
             cocoDt=cocoGt.loadRes(resFile)

@@ -46,7 +46,7 @@ for kk in range(2):
                             [[30, 61], [62, 45], [59, 119]],
                             [[10, 13], [16, 30], [33, 23]]],
                         "classes": 80}
-                }
+                 }
 
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

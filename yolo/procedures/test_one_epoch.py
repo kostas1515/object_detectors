@@ -42,7 +42,7 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
                 labels=(atrbs[:,5:].max(axis=1)[1])
                 if dset_name=='coco':
                     labels=helper.torch80_to_91(labels).tolist()
-                elif dset_name=='lvis':
+                else:
                     labels = (labels + 1).tolist()
                 bboxes=torch.stack((xmin, ymin, w, h),axis=1)
                 areas=(bboxes[:,2]*bboxes[:,3]).tolist()

@@ -1,4 +1,4 @@
-from dsets import coco_dataset,lvis_dataset
+from dsets import coco_dataset,lvis_dataset,drones_dataset
 from dsets.transformations import ResizeToTensor,COCO91_80,Class1_0,Augment
 from torchvision import transforms 
 from torch.utils.data import DataLoader
@@ -60,7 +60,20 @@ def get_dataloaders(cfg):
         ds_val = lvis_dataset.LVISDetection(root = root,
                                             annFile = val_annotations,
                                             subset=ts_subset,
-                                            transform=transforms.Compose(transformationsList_test))     
+                                            transform=transforms.Compose(transformationsList_test))
+    elif dset_name=='drones':
+        transformationsList_train.append(Class1_0())
+        transformationsList_test.append(Class1_0())
+
+        ds_train = drones_dataset.DroneDetection(root = root,
+                                              annFile = train_annotations,
+                                              subset=tr_subset,
+                                              transform=transforms.Compose(transformationsList_train))
+        
+        ds_val = drones_dataset.DroneDetection(root = root,
+                                            annFile = val_annotations,
+                                            subset=ts_subset,
+                                            transform=transforms.Compose(transformationsList_test))    
     if config.num_workers>0:
         mp_context='fork'
     else:
@@ -89,5 +102,5 @@ def get_dataloaders(cfg):
 
 
     test_loader.dset_name = dset_name
-
+    
     return train_loader,test_loader
