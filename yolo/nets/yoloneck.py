@@ -49,5 +49,6 @@ class YoloNeck(nn.Module):
             fxs = self.fpn1(fused_embeddings) #512
 
             # (x0, _, _) = self.fpn0((x0, x1, x2)) #1024
-        
-        return embeddings[0],fxs[1].clone(),x2_out
+            return embeddings[0],fxs[1].clone(),x2_out
+
+        return embeddings
