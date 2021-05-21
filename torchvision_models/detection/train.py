@@ -29,6 +29,7 @@ import torch.utils.data
 import torchvision
 import torchvision.models.detection
 import torchvision.models.detection.mask_rcnn
+import pandas as pd
 
 from detection.coco_utils import get_coco, get_coco_kp, get_lvis
 
@@ -95,17 +96,23 @@ def main(args):
 
     print("Creating model")
     kwargs = {
-        "trainable_backbone_layers": args.trainable_backbone_layers
+        "trainable_backbone_layers": args.trainable_backbone_layers,
     }
+    if (args.tfidf):
+        tfidf= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
+        tfidf = torch.tensor(tfidf,device='cuda').unsqueeze(0)
+    else:
+        tfidf = torch.ones(num_classes,device='cuda',dtype=torch.float).unsqueeze(0)
+
     if "rcnn" in args.model:
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
     if args.model == 'fasterrcnn_resnet50_fpn':
-        model = frcnn.fasterrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
+        model = frcnn.fasterrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
     elif args.model == 'retinanet_resnet50_fpn':
-        model = retinanet.retinanet_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
+        model = retinanet.retinanet_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
     elif args.model == 'maskrcnn_resnet50_fpn':
-        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes)
+        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
 
 
     # model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,
@@ -191,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     parser.add_argument('--rpn-score-thresh', default=None, type=float, help='rpn score threshold for faster-rcnn')
+    parser.add_argument('--tfidf', default=None, type=str, help='tfidf weights')
     parser.add_argument('--trainable-backbone-layers', default=None, type=int,
                         help='number of trainable layers of backbone')
     parser.add_argument(

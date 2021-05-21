@@ -43,9 +43,9 @@ class RetinaNetHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes):
+    def __init__(self, in_channels, num_anchors, num_classes,tfidf=None):
         super().__init__()
-        self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes)
+        self.classification_head = RetinaNetClassificationHead(in_channels, num_anchors, num_classes,tfidf=tfidf)
         self.regression_head = RetinaNetRegressionHead(in_channels, num_anchors)
 
     def compute_loss(self, targets, head_outputs, anchors, matched_idxs):
@@ -73,9 +73,10 @@ class RetinaNetClassificationHead(nn.Module):
         num_classes (int): number of classes to be predicted
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, prior_probability=0.01):
+    def __init__(self, in_channels, num_anchors, num_classes, prior_probability=0.01,tfidf=None):
         super().__init__()
 
+        self.tfidf=tfidf
         conv = []
         for _ in range(4):
             conv.append(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
@@ -119,10 +120,10 @@ class RetinaNetClassificationHead(nn.Module):
 
             # find indices for which anchors should be ignored
             valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
-
+            
             # compute the classification loss
             losses.append(sigmoid_focal_loss(
-                cls_logits_per_image[valid_idxs_per_image],
+                self.tfidf*cls_logits_per_image[valid_idxs_per_image],
                 gt_classes_target[valid_idxs_per_image],
                 reduction='sum',
             ) / max(1, num_foreground))
@@ -317,7 +318,7 @@ class RetinaNet(nn.Module):
         'proposal_matcher': det_utils.Matcher,
     }
 
-    def __init__(self, backbone, num_classes,
+    def __init__(self, backbone, num_classes,tfidf,
                  # transform parameters
                  min_size=800, max_size=1333,
                  image_mean=None, image_std=None,
@@ -337,6 +338,7 @@ class RetinaNet(nn.Module):
                 "specifying the number of output channels (assumed to be the "
                 "same for all the levels)")
         self.backbone = backbone
+        self.tfidf=tfidf
 
         assert isinstance(anchor_generator, (AnchorGenerator, type(None)))
 
@@ -349,7 +351,7 @@ class RetinaNet(nn.Module):
         self.anchor_generator = anchor_generator
 
         if head is None:
-            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes)
+            head = RetinaNetHead(backbone.out_channels, anchor_generator.num_anchors_per_location()[0], num_classes,tfidf = self.tfidf)
         self.head = head
 
         if proposal_matcher is None:
@@ -567,7 +569,7 @@ model_urls = {
 
 
 def retinanet_resnet50_fpn(pretrained=False, progress=True,
-                           num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None, **kwargs):
+                           num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None,tfidf=None, **kwargs):
     """
     Constructs a RetinaNet model with a ResNet-50-FPN backbone.
 
@@ -619,7 +621,7 @@ def retinanet_resnet50_fpn(pretrained=False, progress=True,
     # skip P2 because it generates too many anchors (according to their paper)
     backbone = resnet_fpn_backbone('resnet50', pretrained_backbone, returned_layers=[2, 3, 4],
                                    extra_blocks=LastLevelP6P7(256, 256), trainable_layers=trainable_backbone_layers)
-    model = RetinaNet(backbone, num_classes, **kwargs)
+    model = RetinaNet(backbone, num_classes,tfidf, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['retinanet_resnet50_fpn_coco'],
                                               progress=progress)

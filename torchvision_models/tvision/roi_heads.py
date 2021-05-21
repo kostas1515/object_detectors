@@ -34,16 +34,11 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
         classification_loss (Tensor)
         box_loss (Tensor)
     """  
-    #tfidf
+
     labels = torch.cat(labels, dim=0)
     regression_targets = torch.cat(regression_targets, dim=0)
     
-    idf_weights=pd.read_csv('../lvis_files/idf_1204.csv')['idf_weights']
-    idf_weights=torch.tensor(idf_weights).cuda()
-    idf_weights=idf_weights.unsqueeze(0)
-    
-    # classification_loss = F.cross_entropy(class_logits, labels,weight=idf_weights)
-    classification_loss = F.cross_entropy(idf_weights*class_logits, labels)
+    classification_loss = F.cross_entropy(class_logits, labels)
     
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
@@ -514,6 +509,7 @@ class RoIHeads(torch.nn.Module):
                  box_roi_pool,
                  box_head,
                  box_predictor,
+                 tfidf,
                  # Faster R-CNN training
                  fg_iou_thresh, bg_iou_thresh,
                  batch_size_per_image, positive_fraction,
@@ -532,6 +528,7 @@ class RoIHeads(torch.nn.Module):
                  ):
         super(RoIHeads, self).__init__()
 
+        self.tfidf=tfidf
         self.box_similarity = box_ops.box_iou
         # assign ground-truth boxes for each proposal
         self.proposal_matcher = det_utils.Matcher(
@@ -678,11 +675,7 @@ class RoIHeads(torch.nn.Module):
         pred_boxes = self.box_coder.decode(box_regression, proposals)
         
         #tfidf
-        idf_weights=pd.read_csv('../lvis_files/idf_1204.csv')['idf_weights']
-        idf_weights=torch.tensor(idf_weights).cuda()
-        idf_weights=idf_weights.unsqueeze(0)
-
-        pred_scores = F.softmax(idf_weights*class_logits, -1)
+        pred_scores = F.softmax(self.tfidf*class_logits, -1)
 
         # split boxes and scores per image
         if len(boxes_per_image) == 1:
@@ -769,7 +762,7 @@ class RoIHeads(torch.nn.Module):
         if self.training:
             assert labels is not None and regression_targets is not None
             loss_classifier, loss_box_reg = fastrcnn_loss(
-                class_logits, box_regression, labels, regression_targets)
+                self.tfidf*class_logits, box_regression, labels, regression_targets)
             losses = {
                 "loss_classifier": loss_classifier,
                 "loss_box_reg": loss_box_reg

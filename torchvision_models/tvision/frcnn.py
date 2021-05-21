@@ -146,7 +146,7 @@ class FasterRCNN(GeneralizedRCNN):
         >>> predictions = model(x)
     """
 
-    def __init__(self, backbone, num_classes=None,
+    def __init__(self, backbone, num_classes=None,tfidf=None,
                  # transform parameters
                  min_size=800, max_size=1333,
                  image_mean=None, image_std=None,
@@ -173,7 +173,6 @@ class FasterRCNN(GeneralizedRCNN):
 
         assert isinstance(rpn_anchor_generator, (AnchorGenerator, type(None)))
         assert isinstance(box_roi_pool, (MultiScaleRoIAlign, type(None)))
-
         if num_classes is not None:
             if box_predictor is not None:
                 raise ValueError("num_classes should be None when box_predictor is specified")
@@ -226,7 +225,7 @@ class FasterRCNN(GeneralizedRCNN):
 
         roi_heads = RoIHeads(
             # Box
-            box_roi_pool, box_head, box_predictor,
+            box_roi_pool, box_head, box_predictor,tfidf,
             box_fg_iou_thresh, box_bg_iou_thresh,
             box_batch_size_per_image, box_positive_fraction,
             bbox_reg_weights,
@@ -301,7 +300,7 @@ model_urls = {
 
 
 def fasterrcnn_resnet50_fpn(pretrained=False, progress=True,
-                            num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None, **kwargs):
+                            num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None,tfidf=None, **kwargs):
     """
     Constructs a Faster R-CNN model with a ResNet-50-FPN backbone.
 
@@ -368,7 +367,7 @@ def fasterrcnn_resnet50_fpn(pretrained=False, progress=True,
         # no need to download the backbone if pretrained is set
         pretrained_backbone = False
     backbone = resnet_fpn_backbone('resnet50', pretrained_backbone, trainable_layers=trainable_backbone_layers)
-    model = FasterRCNN(backbone, num_classes, **kwargs)
+    model = FasterRCNN(backbone, num_classes,tfidf, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['fasterrcnn_resnet50_fpn_coco'],
                                               progress=progress)
