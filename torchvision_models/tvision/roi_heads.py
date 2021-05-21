@@ -38,16 +38,12 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
     labels = torch.cat(labels, dim=0)
     regression_targets = torch.cat(regression_targets, dim=0)
     
-#     idf_weights=pd.read_csv('91_classes.csv')['img_idf']
-#     idf_weights=torch.tensor(idf_weights).cuda()
-    
-    # idf_weights=[1/2.7182]
-    # idf_weights=idf_weights+pd.read_csv('idf.csv')['img_freq'].tolist()
-    # idf_weights=torch.tensor(idf_weights).cuda()
-    # idf_weights=-torch.log(idf_weights)
+    idf_weights=pd.read_csv('../lvis_files/idf_1204.csv')['idf_weights']
+    idf_weights=torch.tensor(idf_weights).cuda()
+    idf_weights=idf_weights.unsqueeze(0)
     
     # classification_loss = F.cross_entropy(class_logits, labels,weight=idf_weights)
-    classification_loss = F.cross_entropy(class_logits, labels)
+    classification_loss = F.cross_entropy(idf_weights*class_logits, labels)
     
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
@@ -680,8 +676,13 @@ class RoIHeads(torch.nn.Module):
 
         boxes_per_image = [len(boxes_in_image) for boxes_in_image in proposals]
         pred_boxes = self.box_coder.decode(box_regression, proposals)
+        
+        #tfidf
+        idf_weights=pd.read_csv('../lvis_files/idf_1204.csv')['idf_weights']
+        idf_weights=torch.tensor(idf_weights).cuda()
+        idf_weights=idf_weights.unsqueeze(0)
 
-        pred_scores = F.softmax(class_logits, -1)
+        pred_scores = F.softmax(idf_weights*class_logits, -1)
 
         # split boxes and scores per image
         if len(boxes_per_image) == 1:

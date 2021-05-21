@@ -32,9 +32,6 @@ ax_config:
     yolo.lambda_cls:
       type: range
       bounds: [0.0, 2.0]
-    yolo.class_loss:
-      type: choice 
-      values : [0,1]
     yolo.ignore_threshold:
       type: range
       bounds: [0.1, 0.9]

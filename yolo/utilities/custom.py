@@ -178,18 +178,33 @@ class IDFTransformer(nn.Module):
             mask=mask.tolist()[0]
             final = final.tocsr()[:,mask]
             self.num_classes = final.shape[1]
-            self.idf_transformer = TfidfTransformer()
-            self.idf_transformer.fit(final)
-            df['idf_weights']= self.idf_transformer.idf_
+            doc_freq = (final>0).sum(axis=0)
+            smooth = (np.log((final.shape[0]+1)/(doc_freq+1))+1).tolist()[0]
+            raw = (np.log((final.shape[0])/(doc_freq))).tolist()[0]
+            prob = (np.log((final.shape[0]-doc_freq)/(doc_freq))).tolist()[0]
+            df['smooth'] = smooth
+            df['raw'] = raw
+            df['prob'] = prob
+            self.idf_weights={} 
+            self.idf_weights['smooth'] = torch.tensor(
+                smooth, dtype=torch.float, device=self.device)
+            self.idf_weights['raw'] = torch.tensor(
+                raw, dtype=torch.float, device=self.device)
+            self.idf_weights['prob'] = torch.tensor(
+                prob, dtype=torch.float, device=self.device)
             df.to_csv(os.path.join(idf_path,'idf.csv'))
-            self.idf_weights = torch.tensor(self.idf_transformer.idf_,dtype=torch.float,device=self.device)
-            self.idf_weight_norm = torch.norm(self.idf_weights)
+
         else:
             df=pd.read_csv(os.path.join(idf_path,'idf.csv'))
-            weights=np.array(df['idf_weights'])
-            self.idf_weights = torch.tensor(weights,dtype=torch.float,device=self.device)
-            self.num_classes = self.idf_weights.shape[0]
-            self.idf_weight_norm = torch.norm(self.idf_weights)
+            self.idf_weights = {}
+            self.idf_weights['smooth'] = torch.tensor(
+                df['smooth'], dtype=torch.float, device=self.device)
+            self.idf_weights['raw'] = torch.tensor(
+                df['raw'], dtype=torch.float, device=self.device)
+            self.idf_weights['prob'] = torch.tensor(
+                df['prob'], dtype=torch.float, device=self.device)
+
+            self.num_classes = self.idf_weights['smooth'].shape[0]
 
 
     def forward(self,raw_pred,targets):
@@ -212,25 +227,31 @@ class IDFTransformer(nn.Module):
     
 
 class FPN(nn.Module):
-    def __init__(self,channels,device='cuda'):
+    def __init__(self,channels,bottleneck=True,device='cuda'):
         super(FPN, self).__init__()
-        self.m =FeaturePyramidNetwork([256, 512, 1024], channels).to(device)
+        if bottleneck is True:
+            self.m =FeaturePyramidNetwork([256,512,1024], channels).to(device)
+        else:
+            k=channels//256
+            self.m =FeaturePyramidNetwork([4*256+(k-1)*256,4*512+(k-1)*256,1024+(k-1)*256], channels).to(device)
     
-    def forward(self, layers):
+    def forward(self, embeddings):
+        (x0,x1,x2) = embeddings
         x = OrderedDict()
-        x['feat0'] = layers[2]
-        x['feat1'] = layers[1]
-        x['feat2'] = layers[0]
+        x['feat0'] = x2
+        x['feat1'] = x1
+        x['feat2'] = x0
         mx = self.m(x)
         out=(mx['feat2'],mx['feat1'],mx['feat0'])
 
         return out
 
 class SPP(nn.Module):
-    def __init__(self,embeddings_dim,device='cuda'):
+    def __init__(self,embeddings_dim,bottleneck=True,device='cuda'):
         super(SPP, self).__init__()
         self.spp=[[],[],[]]
         self.bottlenecks=[]
+        self.bottleneck = bottleneck
         channels=[1024, 512, 256]
         for k,e in enumerate(embeddings_dim):
             bottl_inp_channels=(len(e)+1) *channels[k] # number of pyramids subdivision + the initial channels
@@ -254,10 +275,16 @@ class SPP(nn.Module):
 
         i1 = torch.cat([p(x1) for p in self.spp[1]],dim=1)
         with torch.cuda.amp.autocast():
-            x1 = self.bottlenecks[1](torch.cat([x1,i1],dim=1))
+            if self.bottleneck is True:
+                x1 = self.bottlenecks[1](torch.cat([x1,i1],dim=1))
+            else:
+                x1 = torch.cat([x1,i1],dim=1)
 
         i2 = torch.cat([p(x2) for p in self.spp[2]],dim=1)
         with torch.cuda.amp.autocast():
-            x2 = self.bottlenecks[2](torch.cat([x2,i2],dim=1))
+            if self.bottleneck is True:
+                x2 = self.bottlenecks[2](torch.cat([x2,i2],dim=1))
+            else:
+                x2 = torch.cat([x2,i2],dim=1)
 
         return (x0,x1,x2)
