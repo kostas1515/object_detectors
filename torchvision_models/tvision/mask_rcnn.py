@@ -152,7 +152,7 @@ class MaskRCNN(FasterRCNN):
         >>> x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
         >>> predictions = model(x)
     """
-    def __init__(self, backbone, num_classes=None,
+    def __init__(self, backbone, num_classes=None,tfidf=None,
                  # transform parameters
                  min_size=800, max_size=1333,
                  image_mean=None, image_std=None,
@@ -199,7 +199,7 @@ class MaskRCNN(FasterRCNN):
                                                mask_dim_reduced, num_classes)
 
         super(MaskRCNN, self).__init__(
-            backbone, num_classes,
+            backbone, num_classes,tfidf,
             # transform parameters
             min_size, max_size,
             image_mean, image_std,
@@ -270,7 +270,7 @@ model_urls = {
 
 
 def maskrcnn_resnet50_fpn(pretrained=False, progress=True,
-                          num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None, **kwargs):
+                          num_classes=91, pretrained_backbone=True, trainable_backbone_layers=None,tfidf=None, **kwargs):
     """
     Constructs a Mask R-CNN model with a ResNet-50-FPN backbone.
 
@@ -329,7 +329,7 @@ def maskrcnn_resnet50_fpn(pretrained=False, progress=True,
         # no need to download the backbone if pretrained is set
         pretrained_backbone = False
     backbone = resnet_fpn_backbone('resnet50', pretrained_backbone, trainable_layers=trainable_backbone_layers)
-    model = MaskRCNN(backbone, num_classes, **kwargs)
+    model = MaskRCNN(backbone, num_classes,tfidf, **kwargs)
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls['maskrcnn_resnet50_fpn_coco'],
                                               progress=progress)
