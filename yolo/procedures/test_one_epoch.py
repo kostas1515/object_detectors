@@ -24,8 +24,9 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
             predictions[:,:,:4]=helper.get_abs_coord(predictions[:,:,:4])
             score=predictions[:,:,4]*(predictions[:,:,5:].max(axis=2)[0])
             pred_mask=score>confidence
+            scores=[(score[e][m]) for e,m in enumerate(pred_mask)]
             pred_conf=[(predictions[e][m]) for e,m in enumerate(pred_mask)]
-            indices=[boxes.nms(pred_conf[i][:,:4],pred_conf[i][:,4],iou_threshold) for i in range(len(pred_conf))]
+            indices=[boxes.nms(pred_conf[i][:,:4],scores[i],iou_threshold) for i in range(len(pred_conf))]
             pred_final=[pred_conf[i][indices[i],:] for i in range(len(pred_conf))]
             pred_final=list(filter(lambda t:t.shape[0]!=0,pred_final))
 

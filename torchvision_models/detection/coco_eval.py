@@ -14,6 +14,7 @@ import pycocotools.mask as mask_util
 from collections import defaultdict
 
 import utils
+import itertools
 
 
 class CocoEvaluator(object):
@@ -24,6 +25,7 @@ class CocoEvaluator(object):
 
         self.iou_types = iou_types
         self.coco_eval = {}
+        self.coco_detection_list = []
         for iou_type in iou_types:
             self.coco_eval[iou_type] = COCOeval(coco_gt, iouType=iou_type)
 
@@ -40,6 +42,11 @@ class CocoEvaluator(object):
             coco_eval = self.coco_eval[iou_type]
 
             coco_eval.cocoDt = coco_dt
+#             try:
+#                 self.coco_detection_list=list(itertools.chain(self.coco_detection_list, coco_dt.dataset['annotations']))
+#             except KeyError:
+#                 pass
+                
             coco_eval.params.imgIds = list(img_ids)
             img_ids, eval_imgs = evaluate(coco_eval)
 
@@ -58,6 +65,10 @@ class CocoEvaluator(object):
         for iou_type, coco_eval in self.coco_eval.items():
             print("IoU metric: {}".format(iou_type))
             coco_eval.summarize()
+            
+    def save_detections(self,path):
+        json.dump(self.coco_detection_list, open(path, 'w'), indent=4)
+        
 
     def prepare(self, predictions, iou_type):
         if iou_type == "bbox":

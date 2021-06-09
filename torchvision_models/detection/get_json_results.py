@@ -16,6 +16,7 @@ import argparse
 import itertools
 import json
 import os
+import pandas as pd
 
 @torch.no_grad()
 def evaluate(model, data_loader, device):
@@ -72,6 +73,7 @@ if __name__ == "__main__":
     parser.add_argument('--iou_threshold',type=float, default=0.5, help='used during inference')
     parser.add_argument('--max-detections',type=int, default=300, help='used during inference')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
+    parser.add_argument('--tfidf', default=None, type=str, help='tfidf variant')
 
     args = parser.parse_args()
     exp_name = (args.resume).split("/")[-2]
@@ -89,19 +91,25 @@ if __name__ == "__main__":
         num_classes=91
     else:
         sys.exit("Dataset not recognisable")
+        
+    if (args.tfidf):
+        tfidf= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
+        tfidf = torch.tensor(tfidf,device='cuda').unsqueeze(0)
+    else:
+        tfidf = torch.ones(num_classes,device='cuda',dtype=torch.float).unsqueeze(0)
     
     if args.model == 'fasterrcnn_resnet50_fpn':
-        model = frcnn.fasterrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,
+        model = frcnn.fasterrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,tfidf=tfidf,
                                               box_score_thresh=float(args.confidence_threshold),
                                               box_nms_thresh=float(args.iou_threshold),
                                               box_detections_per_img=int(args.max_detections))
     elif args.model == 'retinanet_resnet50_fpn':
-        model = retinanet.retinanet_resnet50_fpn(pretrained=False,num_classes=num_classes,
+        model = retinanet.retinanet_resnet50_fpn(pretrained=False,num_classes=num_classes,tfidf=tfidf,
                                                  box_score_thresh=float(args.confidence_threshold),
                                                  box_nms_thresh=float(args.iou_threshold),
                                                  box_detections_per_img=int(args.max_detections))
     elif args.model == 'maskrcnn_resnet50_fpn':
-        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,
+        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,tfidf=tfidf,
                                                 box_score_thresh=float(args.confidence_threshold),
                                                 box_nms_thresh=float(args.iou_threshold),
                                                 box_detections_per_img=int(args.max_detections))

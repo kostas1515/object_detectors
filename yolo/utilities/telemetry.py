@@ -5,12 +5,15 @@ from torchvision.ops import boxes
 from utilities import helper
 import cv2
 import numpy as np
+from utilities import custom
 
 class Telemetry():
 
 
-    def __init__(self,net_out,image,targets,dset_name='coco'):
+    def __init__(self,net_out,image,targets,config):
         
+        config = config
+        dset_name=config.dataset.dset_name
         if dset_name=='coco':
             with open('../coco_files/coco.names') as f:
                 self.class_names=f.readlines()
@@ -26,10 +29,13 @@ class Telemetry():
         self.img_size=image.shape[-1]
         self.out = [n.detach() for n in net_out]
         self.targets = targets
-        self.anchors =[[[116, 90], [156, 198], [373, 326]],
-                        [[30, 61], [62, 45], [59, 119]],
-                        [[10, 13], [16, 30], [33, 23]]]
-        
+        self.anchors = config.yolo.anchors
+        self.class_loss = config.yolo.class_loss
+        self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device='cuda')
+        if config.yolo.tfidf[1] == 0:
+            self.idf_logits = torch.ones([1,1,self.num_classes],device='cuda',dtype=torch.float)
+        else:
+            self.idf_logits=self.idf.idf_weights[config.yolo.tfidf_variant].unsqueeze(0).unsqueeze(0)
         self.bbox_attrs=self.num_classes+5
         self.num_anchors=len(self.anchors)
         self.true_pred=[]
@@ -52,7 +58,10 @@ class Telemetry():
             prd[...,2] = prd[..., 2]                         # Width
             prd[...,3] = prd[..., 3]                         # Height
             prd[...,4] = torch.sigmoid(prd[..., 4])          # Conf
-            prd[...,5:] = torch.sigmoid(prd[..., 5:])        # Cls pred.
+            if self.class_loss == 1:
+                prd[...,5:] = torch.softmax(self.idf_logits*prd[..., 5:],axis=-1)
+            else:
+                prd[...,5:] = torch.sigmoid(self.idf_logits*prd[..., 5:])        # Cls pred.
             self.out[i]=prd
 
             FloatTensor = torch.cuda.FloatTensor if prd.is_cuda else torch.FloatTensor
@@ -127,6 +136,7 @@ class Telemetry():
     def vis_attrib(self,img,scale,aspect,attrib=4):
         attrib2show=self.out[scale][img,aspect,:,:,attrib].cpu().numpy()
         ax = sns.heatmap(attrib2show)
+        return attrib2show
 
     def vis_class(self,img,scale,aspect):
         
@@ -136,8 +146,8 @@ class Telemetry():
         values=(classes[0]).cpu().detach().numpy()
 
         ax = sns.heatmap(values,annot=labels)
-
-
+        return labels
+    
 
     def vis_iou(self,img,scale,aspect):
         output=self.true_pred[scale]
@@ -146,7 +156,10 @@ class Telemetry():
         in_h=(output.shape[1]/self.num_anchors)**0.5
         in_h=int(in_h)
         vis_res=res.view(self.num_anchors,in_h,in_h)
-        ax = sns.heatmap(vis_res[aspect].cpu().numpy())
+        hm=vis_res[aspect].cpu().numpy()
+        ax = sns.heatmap(hm)
+        
+        return hm
 
 
 
@@ -170,7 +183,9 @@ class Telemetry():
         mask[mask==0]=-1
 
         performance_heatmap=confidence*iou*mask
-        ax = sns.heatmap(performance_heatmap.cpu().numpy())
+        hm = performance_heatmap.cpu().numpy()
+        ax = sns.heatmap(hm)
+        return hm
 
     
     def get_category_name(self,index):
@@ -186,8 +201,8 @@ class Telemetry():
         score=predictions[:,4]*(predictions[:,5:].max(axis=1)[0])
         pred_mask=score>confidence
         pred_conf=predictions[pred_mask]
-
-        indices=boxes.nms(pred_conf[:,:4],pred_conf[:,4],iou_threshold)
+        score=score[pred_mask]
+        indices=boxes.nms(pred_conf[:,:4],score,iou_threshold)
         pred_final=pred_conf[indices,:]
 
 

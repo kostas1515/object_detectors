@@ -103,7 +103,8 @@ class RetinaNetClassificationHead(nn.Module):
     def compute_loss(self, targets, head_outputs, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Tensor
         losses = []
-
+#         criterion = torch.nn.BCEWithLogitsLoss(reduction='sum')
+        tfidf_norm = torch.norm(self.tfidf,p=2)
         cls_logits = head_outputs['cls_logits']
 
         for targets_per_image, cls_logits_per_image, matched_idxs_per_image in zip(targets, cls_logits, matched_idxs):
@@ -121,13 +122,21 @@ class RetinaNetClassificationHead(nn.Module):
             # find indices for which anchors should be ignored
             valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
             
-            # compute the classification loss
+            # compute tfidf bce-loss loss
+#             ls=criterion(
+#                 self.tfidf*cls_logits_per_image[valid_idxs_per_image],
+#                 gt_classes_target[valid_idxs_per_image],
+#             ) /(max(1, num_foreground)*tfidf_norm) 
+#             print(ls,num_foreground)
+#             losses.append(ls)
+            
+            
             losses.append(sigmoid_focal_loss(
-                self.tfidf*cls_logits_per_image[valid_idxs_per_image],
+                (self.tfidf)*cls_logits_per_image[valid_idxs_per_image],
                 gt_classes_target[valid_idxs_per_image],
                 reduction='sum',
-            ) / max(1, num_foreground))
-
+            ) / (max(1, num_foreground)*tfidf_norm))
+        
         return _sum(losses) / len(targets)
 
     def forward(self, x):
