@@ -38,7 +38,7 @@ from detection.engine import train_one_epoch, evaluate
 
 import detection.presets as presets
 import detection.utils as utils
-from tvision import frcnn,retinanet,mask_rcnn
+from tvision import frcnn,retinanet,mask_rcnn,ssd
 from tvision.frcnn import FastRCNNPredictor
 
 
@@ -54,8 +54,8 @@ def get_dataset(name, image_set, transform, data_path):
     return ds, num_classes
 
 
-def get_transform(train):
-    return presets.DetectionPresetTrain() if train else presets.DetectionPresetEval()
+def get_transform(train, data_augmentation):
+    return presets.DetectionPresetTrain(data_augmentation) if train else presets.DetectionPresetEval()
 
 
 def main(args):
@@ -67,8 +67,9 @@ def main(args):
     # Data loading code
     print("Loading data")
 
-    dataset, num_classes = get_dataset(args.dataset, "train", get_transform(train=True), args.data_path)
-    dataset_test, _ = get_dataset(args.dataset, "val", get_transform(train=False), args.data_path)
+    dataset, num_classes = get_dataset(args.dataset, "train", get_transform(True, args.data_augmentation),
+                                       args.data_path)
+    dataset_test, _ = get_dataset(args.dataset, "val", get_transform(False, args.data_augmentation), args.data_path)
 
     print("Creating data loaders")
     if args.distributed:
@@ -113,6 +114,8 @@ def main(args):
         model = retinanet.retinanet_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
     elif args.model == 'maskrcnn_resnet50_fpn':
         model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
+    elif args.model == 'ssd300_vgg16':
+        model = ssd.ssd300_vgg16(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
 
 
     # model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,
@@ -128,7 +131,6 @@ def main(args):
     optimizer = torch.optim.SGD(
         params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
-    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma)
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_steps, gamma=args.lr_gamma)
 
     if args.resume:
@@ -203,6 +205,8 @@ if __name__ == "__main__":
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf weights')
     parser.add_argument('--trainable-backbone-layers', default=None, type=int,
                         help='number of trainable layers of backbone')
+    parser.add_argument('--data-augmentation', default="hflip", help='data augmentation policy (default: hflip)')
+
     parser.add_argument(
         "--test-only",
         dest="test_only",
