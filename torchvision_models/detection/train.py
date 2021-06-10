@@ -91,7 +91,7 @@ def main(args):
         collate_fn=utils.collate_fn)
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1,
+        dataset_test, batch_size=args.batch_size,
         sampler=test_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
 
@@ -163,6 +163,7 @@ def main(args):
                 os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
 
         # evaluate after every epoch
+        print('Evaluating model: {}'.format(args.output_dir.split('/')[-1]))
         evaluate(model, data_loader_test, device=device)
 
     total_time = time.time() - start_time
