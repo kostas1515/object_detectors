@@ -13,7 +13,7 @@ import pycocotools.mask as mask_util
 
 from collections import defaultdict
 
-import utils
+from . import utils
 import itertools
 
 
@@ -42,10 +42,10 @@ class CocoEvaluator(object):
             coco_eval = self.coco_eval[iou_type]
 
             coco_eval.cocoDt = coco_dt
-#             try:
-#                 self.coco_detection_list=list(itertools.chain(self.coco_detection_list, coco_dt.dataset['annotations']))
-#             except KeyError:
-#                 pass
+            try:
+                self.coco_detection_list=list(itertools.chain(self.coco_detection_list, coco_dt.dataset['annotations']))
+            except KeyError:
+                pass
                 
             coco_eval.params.imgIds = list(img_ids)
             img_ids, eval_imgs = evaluate(coco_eval)

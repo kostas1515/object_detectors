@@ -103,8 +103,6 @@ class RetinaNetClassificationHead(nn.Module):
     def compute_loss(self, targets, head_outputs, matched_idxs):
         # type: (List[Dict[str, Tensor]], Dict[str, Tensor], List[Tensor]) -> Tensor
         losses = []
-#         criterion = torch.nn.BCEWithLogitsLoss(reduction='sum')
-        tfidf_norm = torch.norm(self.tfidf,p=2)
         cls_logits = head_outputs['cls_logits']
 
         for targets_per_image, cls_logits_per_image, matched_idxs_per_image in zip(targets, cls_logits, matched_idxs):
@@ -120,22 +118,16 @@ class RetinaNetClassificationHead(nn.Module):
             ] = 1.0
 
             # find indices for which anchors should be ignored
-            valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
+            valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS           
             
-            # compute tfidf bce-loss loss
-#             ls=criterion(
-#                 self.tfidf*cls_logits_per_image[valid_idxs_per_image],
-#                 gt_classes_target[valid_idxs_per_image],
-#             ) /(max(1, num_foreground)*tfidf_norm) 
-#             print(ls,num_foreground)
-#             losses.append(ls)
-            
+            cls_logits_per_image_copy = cls_logits_per_image.clone()
+            cls_logits_per_image_copy[foreground_idxs_per_image] *= self.tfidf
             
             losses.append(sigmoid_focal_loss(
-                (self.tfidf)*cls_logits_per_image[valid_idxs_per_image],
+                cls_logits_per_image_copy[valid_idxs_per_image],
                 gt_classes_target[valid_idxs_per_image],
                 reduction='sum',
-            ) / (max(1, num_foreground)*tfidf_norm))
+            ) / (max(1, num_foreground)))
         
         return _sum(losses) / len(targets)
 
@@ -410,7 +402,7 @@ class RetinaNet(nn.Module):
 
     def postprocess_detections(self, head_outputs, anchors, image_shapes):
         # type: (Dict[str, List[Tensor]], List[List[Tensor]], List[Tuple[int, int]]) -> List[Dict[str, Tensor]]
-        class_logits = head_outputs['cls_logits']
+        class_logits = [cl*self.tfidf for cl in head_outputs['cls_logits']]
         box_regression = head_outputs['bbox_regression']
 
         num_images = len(image_shapes)

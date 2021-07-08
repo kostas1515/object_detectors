@@ -10,7 +10,7 @@ import torch.utils.data
 from torch.utils.data.sampler import BatchSampler, Sampler
 from torch.utils.model_zoo import tqdm
 import torchvision
-import lvis_dataset
+from . import lvis_dataset
 
 from PIL import Image
 

@@ -279,11 +279,13 @@ class SSD(nn.Module):
         values, idx = negative_loss.sort(1, descending=True)
         # background_idxs = torch.logical_and(idx.sort(1)[1] < num_negative, torch.isfinite(values))
         background_idxs = idx.sort(1)[1] < num_negative
+        
+        
 
         N = max(1, num_foreground)
         return {
             'bbox_regression': bbox_loss.sum() / N,
-            'classification': (cls_loss[foreground_idxs].sum() + cls_loss[background_idxs].sum()) / (4*N),
+            'classification': (cls_loss[foreground_idxs].sum() + cls_loss[background_idxs].sum()) / (N),
         }
 
     def forward(self, images: List[Tensor],

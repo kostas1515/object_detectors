@@ -142,8 +142,8 @@ def main(args):
 
     if args.test_only:
         coco_eval = evaluate(model, data_loader_test, device=device)
-#         file_name = '..'+''.join(args.resume.split('.')[:-1])+'.json'
-#         coco_eval.save_detections(file_name)
+        file_name = '..'+''.join(args.resume.split('.')[:-1])+'.json'
+        coco_eval.save_detections(file_name)
         return
 
     print("Start training")

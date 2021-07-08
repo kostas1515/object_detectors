@@ -1,5 +1,5 @@
 
-import transforms as T
+from . import transforms as T
 
 
 class DetectionPresetTrain:

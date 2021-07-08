@@ -6,6 +6,8 @@ from utilities import helper
 import cv2
 import numpy as np
 from utilities import custom
+import imgaug as ia
+from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 
 class Telemetry():
 
@@ -232,3 +234,60 @@ class Telemetry():
             k=k+1
         
         io.imshow(im)
+        
+        
+    def draw_pretty_bbs(self,k,confidence=0.1,iou_threshold=0.5,color=(0,255,0),linelen=1,alpha=1):
+
+        predictions=torch.cat(self.true_pred,axis=1)[k]
+        predictions[:,:4]=helper.get_abs_coord(predictions[:,:4])
+
+        score=predictions[:,4]*(predictions[:,5:].max(axis=1)[0])
+        pred_mask=score>confidence
+        pred_conf=predictions[pred_mask]
+        score=score[pred_mask]
+        indices=boxes.nms(pred_conf[:,:4],score,iou_threshold)
+        pred_final=pred_conf[indices,:]
+
+
+        img2show = self.image[k]
+        mean = torch.tensor([[[0.485, 0.456, 0.406]]]).T
+        std = torch.tensor([[[0.229, 0.224, 0.225]]]).T
+        img2show = img2show*std +mean
+        img2show = img2show*255
+        img2show =  img2show.transpose(0,1)
+        img2show =  img2show.transpose(1,2)
+        img2show = img2show.numpy().astype(np.uint8)
+
+        im = img2show.copy()
+        
+        
+        
+        cords=pred_final.clone().cpu().numpy()
+        labels = (pred_final[:,5:].max(axis=1)[1]).cpu().numpy()
+        
+        bbs = BoundingBoxesOnImage([
+        BoundingBox(x1=b[0], y1=b[1], x2=b[2], y2=b[3], label=self.get_category_name(l)) for b,l in zip(cords,labels)], shape=im.shape)
+        
+        io.imshow(bbs.draw_on_image(im,color=color,size=linelen))
+        
+        
+    def show_pretty_gt(self,k,color=(0,255,0),linelen=1,alpha=1):
+        img2show = self.image[k]
+        mean = torch.tensor([[[0.485, 0.456, 0.406]]]).T
+        std = torch.tensor([[[0.229, 0.224, 0.225]]]).T
+        img2show = img2show*std +mean
+        img2show = img2show*255
+        img2show =  img2show.transpose(0,1)
+        img2show =  img2show.transpose(1,2)
+        img2show = img2show.numpy().astype(np.uint8)
+
+        im = img2show.copy()
+
+        bbox=self.targets[k]['bbox'].cuda()*self.img_size
+        cords=helper.get_abs_coord(bbox).cpu().numpy()
+        labels = self.targets[k]['category_id'].cpu().numpy()
+        
+        bbs = BoundingBoxesOnImage([
+        BoundingBox(x1=b[0], y1=b[1], x2=b[2], y2=b[3], label=self.get_category_name(l)) for b,l in zip(cords,labels)], shape=im.shape)
+        
+        io.imshow(bbs.draw_on_image(im,color=color,size=linelen,alpha=alpha))

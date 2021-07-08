@@ -8,7 +8,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from lvis import LVISEval
 from detection.coco_utils import LVISDetection,CocoDetection
-from tvision import frcnn,retinanet,mask_rcnn
+from tvision import frcnn,retinanet,mask_rcnn,ssd
 from detection import utils,transforms
 from torch.utils.data import DataLoader
 from collections import OrderedDict
@@ -25,7 +25,7 @@ def evaluate(model, data_loader, device):
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
     results = []
-    for images, targets in metric_logger.log_every(data_loader, 10, header):
+    for images, targets in metric_logger.log_every(data_loader, 100, header):
         images = list(img.to(device) for img in images)
 
         torch.cuda.synchronize()
@@ -60,10 +60,10 @@ def evaluate(model, data_loader, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='lvis', help='dataset')
+    parser.add_argument('--dataset', default='coco', help='dataset')
     parser.add_argument('--model', default='maskrcnn_resnet50_fpn', help='model')
     parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('-b', '--batch-size', default=2, type=int,
+    parser.add_argument('-b', '--batch-size', default=1, type=int,
                         help='images per gpu, the total batch size is $NGPU x batch_size')
 
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--confidence_threshold',type=float, default=0.05, help='used during inference')
     parser.add_argument('--iou_threshold',type=float, default=0.5, help='used during inference')
-    parser.add_argument('--max-detections',type=int, default=300, help='used during inference')
+    parser.add_argument('--max-detections',type=int, default=100, help='used during inference')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf variant')
 
@@ -80,12 +80,14 @@ if __name__ == "__main__":
     out_dir = os.path.join('../jsons',args.dataset,exp_name)
     utils.mkdir(out_dir)
         
-    root='../../../../datasets/coco/images'
+    
     if args.dataset=='lvis':
+        root='../../../../datasets/coco/'
         annotations="../../../../datasets/coco/annotations/lvis_v1_val.json"
         dset = LVISDetection(root,annotations,transforms=transforms.ToTensor())
         num_classes=1204
     elif args.dataset=='coco':
+        root='../../../../datasets/coco/val2017'
         annotations="../../../../datasets/coco/annotations/instances_val2017.json"
         dset = CocoDetection(root,annotations,transforms=transforms.ToTensor())
         num_classes=91
@@ -113,6 +115,8 @@ if __name__ == "__main__":
                                                 box_score_thresh=float(args.confidence_threshold),
                                                 box_nms_thresh=float(args.iou_threshold),
                                                 box_detections_per_img=int(args.max_detections))
+    elif args.model == 'ssd300_vgg16':
+        model = ssd.ssd300_vgg16(pretrained=False,num_classes=num_classes,tfidf= tfidf)
 
     if args.resume:
         checkpoint = torch.load(args.resume, map_location='cpu')

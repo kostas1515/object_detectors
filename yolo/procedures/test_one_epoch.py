@@ -26,9 +26,16 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
             pred_mask=score>confidence
             scores=[(score[e][m]) for e,m in enumerate(pred_mask)]
             pred_conf=[(predictions[e][m]) for e,m in enumerate(pred_mask)]
-            indices=[boxes.nms(pred_conf[i][:,:4],scores[i],iou_threshold) for i in range(len(pred_conf))]
-            pred_final=[pred_conf[i][indices[i],:] for i in range(len(pred_conf))]
+            #old nms
+#             indices=[boxes.nms(pred_conf[i][:,:4],scores[i],iou_threshold) for i in range(len(pred_conf))]
+#             pred_final=[pred_conf[i][indices[i],:] for i in range(len(pred_conf))]
+#             pred_final=list(filter(lambda t:t.shape[0]!=0,pred_final))
+            #new majority nms
+            pred_conf=list(filter(lambda t:t.shape[0]!=0,pred_conf))
+            majority_pred = [torch.cat([p[:,:4],p[:,4:5]*(p[:,5:].max(axis=1)[0]).unsqueeze(1),(p[:,5:].max(axis=1)[1]).unsqueeze(1)],axis=1) for p in pred_conf]
+            pred_final = [helper.nms_majority(f) for f in majority_pred]
             pred_final=list(filter(lambda t:t.shape[0]!=0,pred_final))
+
 
 
             for i,atrbs in enumerate(pred_final):
@@ -39,8 +46,10 @@ def test_one_epoch(dataloader,model,yolo_loss,cfg):
                 w=xmax-xmin
                 h=ymax-ymin
 
-                scores=(atrbs[:,4]*atrbs[:,5:].max(axis=1)[0]).tolist()
-                labels=(atrbs[:,5:].max(axis=1)[1])
+#                 scores=(atrbs[:,4]*atrbs[:,5:].max(axis=1)[0]).tolist()
+                scores=(atrbs[:,4]).tolist()
+#                 labels=(atrbs[:,5:].max(axis=1)[1])
+                labels=(atrbs[:,5]).long()
                 if dset_name=='coco':
                     labels=helper.torch80_to_91(labels).tolist()
                 else:
