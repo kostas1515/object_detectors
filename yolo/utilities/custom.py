@@ -207,21 +207,12 @@ class IDFTransformer(nn.Module):
             self.num_classes = self.idf_weights['smooth'].shape[0]
 
 
-    def forward(self,raw_pred,targets):
-        reduce_mini_batch=self.reduce_mini_batch
+    def forward(self,targets):
         tensor=torch.stack([torch.bincount(t['category_id'],minlength=self.num_classes) for t in targets])
-        if reduce_mini_batch is True:
-            tensor = tensor.sum(axis=0)
-        idf_w = self.idf_weights.unsqueeze(0)
-        transformed_tensor= tensor * idf_w
-        transformed_tensor = transformed_tensor/torch.norm(transformed_tensor,dim=1).unsqueeze(1)
-        classes=torch.softmax(raw_pred[...,5:],dim=2)
-        class_bias = classes.mean(axis=1)
-        if reduce_mini_batch is True:
-            class_bias = class_bias.sum(axis=0).unsqueeze(0)
-        class_bias = class_bias/torch.norm(class_bias,dim=1).unsqueeze(1)
-
-        return self.loss(class_bias,transformed_tensor)
+        tensor[tensor > 0] = 1
+        tensor = tensor.sum(axis=0)
+        weights = torch.log((len(targets)+1)/(tensor+1)) +1
+        return weights
     
 
     

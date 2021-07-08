@@ -18,3 +18,4 @@ inf_iou_threshold: 0.6
 tfidf: [0,1] #[cost_learning,id*logits]
 tfidf_variant: 'smooth' #pick: 'smooth', 'raw', 'prob'
 tfidf_norm: 0 # 0,1,2,.. (0 ->n/a, 1->l1,2->l2,..)
+tfidf_batch: False #if true calulate idf from batch not dataset

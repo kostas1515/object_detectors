@@ -39,18 +39,20 @@ class YOLOForw(nn.Module):
         self.nobj_loss = custom.FocalLoss(self.nobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
 
         #TFIDF
+        self.tfidf_norm = cfg.tfidf_norm
+        self.tfidf_batch = cfg.tfidf_batch
         weights = torch.ones(self.num_classes,device=self.device)
         self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
         self.idf_logits=torch.tensor(1).cuda()
         if cfg.tfidf[0]==1:
             weights = self.idf.idf_weights[cfg.tfidf_variant]
-            if (cfg.tfidf_norm != 0):
-                weights = weights / torch.norm(weights,p=cfg.tfidf_norm)
+            if (self.tfidf_norm != 0):
+                weights = weights / torch.norm(weights, p=self.tfidf_norm)
         if cfg.tfidf[1]==1:
             self.idf_logits=self.idf.idf_weights[cfg.tfidf_variant]
-            if (cfg.tfidf_norm != 0):
-                self.idf_logits = self.idf_logits / torch.norm(self.idf_logits,p=cfg.tfidf_norm)
-
+            if (self.tfidf_norm != 0):
+                self.idf_logits = self.idf_logits / \
+                    torch.norm(self.idf_logits, p=self.tfidf_norm)
 
         if cfg.class_loss==0:
             self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
@@ -63,6 +65,12 @@ class YOLOForw(nn.Module):
         cxypwh =[]
         inw_inh=[]
         strides=[]
+        #TFIDF - Minibatch calculation
+        if (self.tfidf_batch is True) & (targets is not None):
+            self.idf_logits = self.idf(targets)
+            if (self.tfidf_norm != 0):
+                self.idf_logits = self.idf_logits / \
+                    torch.norm(self.idf_logits, p=self.tfidf_norm)
         # no_obj_conf_weights=[] # that will be [16,4,1] for the scales of yolo
         for k,input in enumerate(input):
             bs = input.size(0)
