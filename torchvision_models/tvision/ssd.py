@@ -181,7 +181,11 @@ class SSD(nn.Module):
 
         self.backbone = backbone
 
-        self.tfidf=tfidf
+        self.num_classes = tfidf['num_classes']
+        self.tfidf_post = tfidf['values'].clone()
+        self.tfidf = tfidf['values']
+        self.tfidf_mini_batch = tfidf['mini_batch']
+        self.tfidf_norm = tfidf['tfidf_norm']
 
         self.anchor_generator = anchor_generator
 
@@ -261,6 +265,17 @@ class SSD(nn.Module):
 
         bbox_loss = torch.stack(bbox_loss)
         cls_targets = torch.stack(cls_targets)
+
+        #tfidf
+        if self.tfidf_mini_batch is True:
+                weights = torch.stack(
+                    [torch.bincount(t['labels'], minlength=self.num_classes) for t in targets])
+                weights[weights > 0] = 1
+                weights = weights.sum(axis=0)
+                weights = torch.log((len(targets)+1)/(weights+1)) + 1
+                self.tfidf = weights
+                if self.tfidf_norm != 0 :
+                    self.tfidf /= torch.norm(self.tfidf, p=self.tfidf_norm)
 
         # Calculate classification loss
         num_classes = cls_logits.size(-1)
@@ -371,7 +386,7 @@ class SSD(nn.Module):
     def postprocess_detections(self, head_outputs: Dict[str, Tensor], image_anchors: List[Tensor],
                                image_shapes: List[Tuple[int, int]]) -> List[Dict[str, Tensor]]:
         bbox_regression = head_outputs['bbox_regression']
-        pred_scores = F.softmax(self.tfidf.unsqueeze(0)*head_outputs['cls_logits'], dim=-1)
+        pred_scores = F.softmax(self.tfidf_post.unsqueeze(0)*head_outputs['cls_logits'], dim=-1)
         num_classes = pred_scores.size(-1)
         device = pred_scores.device
 

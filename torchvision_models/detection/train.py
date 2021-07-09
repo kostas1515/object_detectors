@@ -99,12 +99,19 @@ def main(args):
     kwargs = {
         "trainable_backbone_layers": args.trainable_backbone_layers,
     }
+    tfidf={}
     if (args.tfidf):
-        tfidf= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
-        tfidf = torch.tensor(tfidf,device='cuda').unsqueeze(0)
+        tfidf_values= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
+        tfidf_values = torch.tensor(tfidf_values, device='cuda').unsqueeze(0)
+        if args.tfidf_norm != 0 :
+            tfidf_values /= torch.norm(tfidf_values, p=args.tfidf_norm)
     else:
-        tfidf = torch.ones(num_classes,device='cuda',dtype=torch.float).unsqueeze(0)
-
+        tfidf_values = torch.ones(
+            num_classes, device='cuda', dtype=torch.float).unsqueeze(0)
+    tfidf['values'] = tfidf_values
+    tfidf['num_classes'] = num_classes
+    tfidf['mini_batch'] = args.tfidf_mini_batch
+    tfidf['tfidf_norm'] = args.tfidf_norm
     if "rcnn" in args.model:
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
@@ -204,6 +211,10 @@ if __name__ == "__main__":
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     parser.add_argument('--rpn-score-thresh', default=None, type=float, help='rpn score threshold for faster-rcnn')
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf weights')
+    parser.add_argument('--tfidf_norm', default=0,
+                        type=int, help='normalise tfidf weights')
+    parser.add_argument('--tfidf_mini_batch', default=False,
+                        help='calculate tfidf from mini-batch', action="store_true")
     parser.add_argument('--trainable-backbone-layers', default=None, type=int,
                         help='number of trainable layers of backbone')
     parser.add_argument('--data-augmentation', default="hflip", help='data augmentation policy (default: hflip)')

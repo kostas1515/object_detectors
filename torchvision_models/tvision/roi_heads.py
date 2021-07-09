@@ -528,7 +528,12 @@ class RoIHeads(torch.nn.Module):
                  ):
         super(RoIHeads, self).__init__()
 
-        self.tfidf=tfidf
+        self.num_classes = tfidf['num_classes']
+        self.tfidf_post=tfidf['values'].clone()
+        self.tfidf=tfidf['values']
+        self.tfidf_mini_batch = tfidf['mini_batch']
+        self.tfidf_norm = tfidf['tfidf_norm']
+
         self.box_similarity = box_ops.box_iou
         # assign ground-truth boxes for each proposal
         self.proposal_matcher = det_utils.Matcher(
@@ -675,7 +680,7 @@ class RoIHeads(torch.nn.Module):
         pred_boxes = self.box_coder.decode(box_regression, proposals)
         
         #tfidf
-        pred_scores = F.softmax(self.tfidf*class_logits, -1)
+        pred_scores = F.softmax(self.tfidf_post*class_logits, -1)
 
         # split boxes and scores per image
         if len(boxes_per_image) == 1:
@@ -745,7 +750,17 @@ class RoIHeads(torch.nn.Module):
                 assert t["labels"].dtype == torch.int64, 'target labels must of int64 type'
                 if self.has_keypoint():
                     assert t["keypoints"].dtype == torch.float32, 'target keypoints must of float type'
-
+            
+            if self.tfidf_mini_batch is True:
+                weights = torch.stack(
+                    [torch.bincount(t['labels'], minlength=self.num_classes) for t in targets])
+                weights[weights > 0] = 1
+                weights = weights.sum(axis=0)
+                weights = torch.log((len(targets)+1)/(weights+1)) + 1
+                self.tfidf = weights
+                if self.tfidf_norm != 0 :
+                    self.tfidf /= torch.norm(self.tfidf, p=self.tfidf_norm)
+                
         if self.training:
             proposals, matched_idxs, labels, regression_targets = self.select_training_samples(proposals, targets)
         else:

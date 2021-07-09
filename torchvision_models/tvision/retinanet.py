@@ -76,7 +76,11 @@ class RetinaNetClassificationHead(nn.Module):
     def __init__(self, in_channels, num_anchors, num_classes, prior_probability=0.01,tfidf=None):
         super().__init__()
 
-        self.tfidf=tfidf
+        self.num_classes = tfidf['num_classes']
+        self.tfidf_post = tfidf['values'].clone()
+        self.tfidf = tfidf['values']
+        self.tfidf_mini_batch = tfidf['mini_batch']
+        self.tfidf_norm = tfidf['tfidf_norm']
         conv = []
         for _ in range(4):
             conv.append(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
@@ -117,14 +121,21 @@ class RetinaNetClassificationHead(nn.Module):
                 targets_per_image['labels'][matched_idxs_per_image[foreground_idxs_per_image]]
             ] = 1.0
 
+            #tfidf
+            if self.tfidf_mini_batch is True:
+                weights = torch.stack(
+                    [torch.bincount(t['labels'], minlength=self.num_classes) for t in targets])
+                weights[weights > 0] = 1
+                weights = weights.sum(axis=0)
+                weights = torch.log((len(targets)+1)/(weights+1)) + 1
+                self.tfidf = weights
+                if self.tfidf_norm != 0:
+                    self.tfidf /= torch.norm(self.tfidf, p=self.tfidf_norm)
+                    
             # find indices for which anchors should be ignored
-            valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS           
-            
-            cls_logits_per_image_copy = cls_logits_per_image.clone()
-            cls_logits_per_image_copy[foreground_idxs_per_image] *= self.tfidf
-            
+            valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
             losses.append(sigmoid_focal_loss(
-                cls_logits_per_image_copy[valid_idxs_per_image],
+                self.tfidf*cls_logits_per_image[valid_idxs_per_image],
                 gt_classes_target[valid_idxs_per_image],
                 reduction='sum',
             ) / (max(1, num_foreground)))
@@ -402,7 +413,7 @@ class RetinaNet(nn.Module):
 
     def postprocess_detections(self, head_outputs, anchors, image_shapes):
         # type: (Dict[str, List[Tensor]], List[List[Tensor]], List[Tuple[int, int]]) -> List[Dict[str, Tensor]]
-        class_logits = [cl*self.tfidf for cl in head_outputs['cls_logits']]
+        class_logits = [cl*self.tfidf_post for cl in head_outputs['cls_logits']]
         box_regression = head_outputs['bbox_regression']
 
         num_images = len(image_shapes)
