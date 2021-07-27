@@ -13,6 +13,7 @@ import os
 import pandas as pd
 from torchvision.ops import FeaturePyramidNetwork
 import math
+from scipy.special import ndtri
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
     # return positive, negative label smoothing BCE targets
@@ -179,12 +180,21 @@ class IDFTransformer(nn.Module):
             final = final.tocsr()[:,mask]
             self.num_classes = final.shape[1]
             doc_freq = (final>0).sum(axis=0)
+            pobs = final.shape[0]/doc_freq
             smooth = (np.log((final.shape[0]+1)/(doc_freq+1))+1).tolist()[0]
             raw = (np.log((final.shape[0])/(doc_freq))).tolist()[0]
             prob = (np.log((final.shape[0]-doc_freq)/(doc_freq))).tolist()[0]
+            normit = -ndtri(pobs)
+            gombit = -np.log(-np.log(1-pobs))
+            base2 = -np.log2(pobs)
+            base10 = -np.log10(pobs)
             df['smooth'] = smooth
             df['raw'] = raw
             df['prob'] = prob
+            df['normit'] = normit
+            df['gombit'] = gombit
+            df['base2'] = base2
+            df['base10'] = base10
             self.idf_weights={} 
             self.idf_weights['smooth'] = torch.tensor(
                 smooth, dtype=torch.float, device=self.device)
@@ -192,6 +202,14 @@ class IDFTransformer(nn.Module):
                 raw, dtype=torch.float, device=self.device)
             self.idf_weights['prob'] = torch.tensor(
                 prob, dtype=torch.float, device=self.device)
+            self.idf_weights['normit'] = torch.tensor(
+                normit, dtype=torch.float, device=self.device)
+            self.idf_weights['gombit'] = torch.tensor(
+                gombit, dtype=torch.float, device=self.device)
+            self.idf_weights['base10'] = torch.tensor(
+                base10, dtype=torch.float, device=self.device)
+            self.idf_weights['base2'] = torch.tensor(
+                base2, dtype=torch.float, device=self.device)
             df.to_csv(os.path.join(idf_path,'idf.csv'))
 
         else:
@@ -203,6 +221,14 @@ class IDFTransformer(nn.Module):
                 df['raw'], dtype=torch.float, device=self.device)
             self.idf_weights['prob'] = torch.tensor(
                 df['prob'], dtype=torch.float, device=self.device)
+            self.idf_weights['normit'] = torch.tensor(
+                df['normit'], dtype=torch.float, device=self.device)
+            self.idf_weights['gombit'] = torch.tensor(
+                df['gombit'], dtype=torch.float, device=self.device)
+            self.idf_weights['base10'] = torch.tensor(
+                df['base10'], dtype=torch.float, device=self.device)
+            self.idf_weights['base2'] = torch.tensor(
+                df['base2'], dtype=torch.float, device=self.device)
 
             self.num_classes = self.idf_weights['smooth'].shape[0]
 
