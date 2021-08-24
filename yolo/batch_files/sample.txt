@@ -1,0 +1,47 @@
+args=(
+    # experiment options
+    experiment.name=test
+    # Optimization
+    optimizer.lr=0.002
+    # YOLO
+    yolo.tfidf=[0,0]
+    yolo.tfidf_variant=None
+    yolo.tfidf_batch=False
+    yolo.tfidf_norm=0
+    yolo.lambda_xy=0.41116272199429155
+    yolo.lambda_wh=0.5561259313611724
+    yolo.lambda_iou=0.803869140220307
+    yolo.ignore_threshold=0.4997490906902686
+    yolo.lambda_conf=1.2638328930415548
+    yolo.lambda_no_conf=0.4841084169300378 
+    yolo.lambda_cls=0.8978325235268696
+    yolo.alpha=0.3530157979199335
+    yolo.gamma=1.8350051247542831
+    yolo.iou_type=3
+    yolo.class_loss=1 #0 for bce, 1 for ce
+    yolo.reduction=sum 
+    yolo.inf_confidence=0.1
+    # neck
+    neck.fpn=False
+    neck.spp=False
+    # Dataset
+    dataset.augment=1 
+    dataset=coco 
+    dataset.tr_batch_size=16 
+    dataset.num_workers=4
+    dataset.inp_dim=640
+    # Misc
+    gpus=4
+    apex_opt=O2 
+    metric=mAP
+    batch_norm_sync=True
+#     scheduler
+    scheduler=multistep
+    scheduler.milestones=[35,55,65]
+    # multiscaler
+    multiscaler.broadcast=True
+    multiscaler.freq=10
+    multiscaler.bounds=[0.5,1.5]
+)
+  
+OMP_NUM_THREADS=1 python main.py -m "${args[@]}"

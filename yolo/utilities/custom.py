@@ -180,55 +180,37 @@ class IDFTransformer(nn.Module):
             final = final.tocsr()[:,mask]
             self.num_classes = final.shape[1]
             doc_freq = (final>0).sum(axis=0)
-            pobs = final.shape[0]/doc_freq
-            smooth = (np.log((final.shape[0]+1)/(doc_freq+1))+1).tolist()[0]
-            raw = (np.log((final.shape[0])/(doc_freq))).tolist()[0]
-            prob = (np.log((final.shape[0]-doc_freq)/(doc_freq))).tolist()[0]
-            normit = -ndtri(pobs)
-            gombit = -np.log(-np.log(1-pobs))
-            base2 = -np.log2(pobs)
-            base10 = -np.log10(pobs)
-            df['smooth'] = smooth
-            df['raw'] = raw
-            df['prob'] = prob
-            df['normit'] = normit
-            df['gombit'] = gombit
-            df['base2'] = base2
-            df['base10'] = base10
-            self.idf_weights={} 
-            self.idf_weights['smooth'] = torch.tensor(
-                smooth, dtype=torch.float, device=self.device)
-            self.idf_weights['raw'] = torch.tensor(
-                raw, dtype=torch.float, device=self.device)
-            self.idf_weights['prob'] = torch.tensor(
-                prob, dtype=torch.float, device=self.device)
-            self.idf_weights['normit'] = torch.tensor(
-                normit, dtype=torch.float, device=self.device)
-            self.idf_weights['gombit'] = torch.tensor(
-                gombit, dtype=torch.float, device=self.device)
-            self.idf_weights['base10'] = torch.tensor(
-                base10, dtype=torch.float, device=self.device)
-            self.idf_weights['base2'] = torch.tensor(
-                base2, dtype=torch.float, device=self.device)
-            df.to_csv(os.path.join(idf_path,'idf.csv'))
+            instance_freq = final.sum(axis=0)
+            pobs = doc_freq/final.shape[0]
+            pobs=np.array(pobs)[0]
+            df['smooth'] = (np.log((final.shape[0]+1)/(doc_freq+1))+1).tolist()[0]
+            df['raw'] = (np.log((final.shape[0])/(doc_freq))).tolist()[0]
+            df['prob'] = (np.log((final.shape[0]-doc_freq)/(doc_freq))).tolist()[0]
+            df['normit'] = -ndtri(pobs)
+            df['gombit'] = -np.log(-np.log(1-pobs))
+            df['base2'] = -np.log2(pobs)
+            df['base10'] = -np.log10(pobs)
+            #obj
+            N = instance_freq.sum()
+            pobs = instance_freq/N
+            pobs=np.array(pobs)[0]
+            df['smooth_obj'] = (np.log((N+1)/(instance_freq+1))+1)
+            df['raw_obj'] = (np.log((N)/(instance_freq)))
+            df['prob_obj'] = (np.log((N-instance_freq)/(instance_freq)))
+            df['gombit_obj'] = -np.log(-np.log(1-pobs))
+            df['normit_obj'] = -ndtri(pobs)
+            df['base2_obj'] = -np.log2(pobs)
+            df['base10_obj'] = -np.log10(pobs)
+            df['img_freq'] = doc_freq.tolist()[0]
+            df['instance_freq'] = instance_freq.tolist()[0]
+            self.idf_weights={}
+            self.idf_weights = {k:torch.tensor(list(v.values()),dtype=torch.float,device=self.device) for k,v in df.to_dict().items() if type(list(v.values())[0])!=str}
+            df.to_csv(os.path.join(idf_path,'idf.csv'),index=False)
 
         else:
-            df=pd.read_csv(os.path.join(idf_path,'idf.csv'))
+            df=pd.read_csv(os.path.join(idf_path,'idf.csv')).to_dict()
             self.idf_weights = {}
-            self.idf_weights['smooth'] = torch.tensor(
-                df['smooth'], dtype=torch.float, device=self.device)
-            self.idf_weights['raw'] = torch.tensor(
-                df['raw'], dtype=torch.float, device=self.device)
-            self.idf_weights['prob'] = torch.tensor(
-                df['prob'], dtype=torch.float, device=self.device)
-            self.idf_weights['normit'] = torch.tensor(
-                df['normit'], dtype=torch.float, device=self.device)
-            self.idf_weights['gombit'] = torch.tensor(
-                df['gombit'], dtype=torch.float, device=self.device)
-            self.idf_weights['base10'] = torch.tensor(
-                df['base10'], dtype=torch.float, device=self.device)
-            self.idf_weights['base2'] = torch.tensor(
-                df['base2'], dtype=torch.float, device=self.device)
+            self.idf_weights = {k:torch.tensor(list(v.values()),dtype=torch.float,device=self.device) for k,v in df.items() if type(list(v.values())[0])!=str}
 
             self.num_classes = self.idf_weights['smooth'].shape[0]
 

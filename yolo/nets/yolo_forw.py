@@ -5,7 +5,7 @@ import numpy as np
 import math
 import os
 from utilities import custom, helper
-
+import pandas as pd
 from torchvision.ops import boxes
 
 
@@ -44,16 +44,26 @@ class YOLOForw(nn.Module):
         weights = torch.ones(self.num_classes,device=self.device)
         self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
         self.idf_logits=torch.tensor(1).cuda()
+        
         if cfg.tfidf[0]==1:
             weights = self.idf.idf_weights[cfg.tfidf_variant]
             if (self.tfidf_norm != 0):
                 weights = weights / torch.norm(weights, p=self.tfidf_norm)
+        elif cfg.tfidf[0]==2: #effective class samples
+            cwd = os.getenv('owd')
+            beta = 0.9999
+            cls_num_list = self.idf.idf_weights['instance_freq'].tolist()
+            effective_num = 1.0 - np.power(beta, cls_num_list)
+            per_cls_weights = (1.0 - beta) / np.array(effective_num)
+            per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
+            weights = torch.FloatTensor(per_cls_weights).cuda()
+            
         if cfg.tfidf[1]==1:
             self.idf_logits=self.idf.idf_weights[cfg.tfidf_variant]
             if (self.tfidf_norm != 0):
                 self.idf_logits = self.idf_logits / \
                     torch.norm(self.idf_logits, p=self.tfidf_norm)
-
+     
         if cfg.class_loss==0:
             self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
         else:
