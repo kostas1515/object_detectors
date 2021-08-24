@@ -1,5 +1,6 @@
 <h2>Instructions for YOLOv3</h2>
 This file contains instructions on how to train YOLOv3 on COCO and LVIS datasets.
+
 Please install the following libraries:
 - torch 
 - torchvision
@@ -29,11 +30,5 @@ To train the default configuration one can use:
 </code>
 
 To train the bayesian optimised configuration one can use the command from batch_files/sample.txt.
-
-
-
-
-
-
 
 
