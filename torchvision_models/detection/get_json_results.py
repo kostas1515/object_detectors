@@ -94,11 +94,19 @@ if __name__ == "__main__":
     else:
         sys.exit("Dataset not recognisable")
         
+    tfidf = {}
+    df = pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')
     if (args.tfidf):
-        tfidf= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
-        tfidf = torch.tensor(tfidf,device='cuda').unsqueeze(0)
+        tfidf_values = df[args.tfidf]
+        tfidf_values = torch.tensor(tfidf_values, device='cuda').unsqueeze(0)
     else:
-        tfidf = torch.ones(num_classes,device='cuda',dtype=torch.float).unsqueeze(0)
+        tfidf_values = torch.ones(
+            num_classes, device='cuda', dtype=torch.float).unsqueeze(0)
+    tfidf['values'] = tfidf_values
+    tfidf['num_classes'] = num_classes
+    tfidf['mini_batch'] = False
+    tfidf['tfidf_norm'] = 0
+    tfidf['classification_weights'] = None
     
     if args.model == 'fasterrcnn_resnet50_fpn':
         model = frcnn.fasterrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,tfidf=tfidf,

@@ -18,7 +18,7 @@ import numpy as np
 
 
 
-def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
+def fastrcnn_loss(class_logits, box_regression, labels, regression_targets,weights=None):
     # 
     """
     type: (Tensor, Tensor, List[Tensor], List[Tensor])
@@ -37,7 +37,8 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
 
     labels = torch.cat(labels, dim=0)
     regression_targets = torch.cat(regression_targets, dim=0)
-    classification_loss = F.cross_entropy(class_logits, labels)
+    classification_loss = F.cross_entropy(
+        class_logits, labels, weight=weights)
     
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
@@ -527,6 +528,7 @@ class RoIHeads(torch.nn.Module):
                  ):
         super(RoIHeads, self).__init__()
 
+        self.classification_weights = tfidf['classification_weights']
         self.num_classes = tfidf['num_classes']
         self.tfidf_post=tfidf['values'].clone()
         self.tfidf=tfidf['values']
@@ -776,7 +778,7 @@ class RoIHeads(torch.nn.Module):
         if self.training:
             assert labels is not None and regression_targets is not None
             loss_classifier, loss_box_reg = fastrcnn_loss(
-                self.tfidf*class_logits, box_regression, labels, regression_targets)
+                self.tfidf*class_logits, box_regression, labels, regression_targets,weights=self.classification_weights)
             losses = {
                 "loss_classifier": loss_classifier,
                 "loss_box_reg": loss_box_reg

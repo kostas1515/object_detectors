@@ -23,6 +23,7 @@ sys.path.insert(1, '../')
 import datetime
 import os
 import time
+import numpy as np
 
 import torch
 import torch.utils.data
@@ -100,8 +101,9 @@ def main(args):
         "trainable_backbone_layers": args.trainable_backbone_layers,
     }
     tfidf={}
+    df = pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')
     if (args.tfidf):
-        tfidf_values= pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')[args.tfidf]
+        tfidf_values= df[args.tfidf]
         tfidf_values = torch.tensor(tfidf_values, device='cuda').unsqueeze(0)
         if args.tfidf_norm != 0 :
             tfidf_values /= torch.norm(tfidf_values, p=args.tfidf_norm)
@@ -112,6 +114,24 @@ def main(args):
     tfidf['num_classes'] = num_classes
     tfidf['mini_batch'] = args.tfidf_mini_batch
     tfidf['tfidf_norm'] = args.tfidf_norm
+    
+    if (args.csl=='eff_samp'):
+        beta = 0.9999
+        cls_num_list = df['instance_freq'].tolist()
+        effective_num = 1.0 - np.power(beta, cls_num_list)
+        per_cls_weights = (1.0 - beta) / np.array(effective_num)
+        per_cls_weights[0] = 1.0  # according to BAGS paper SUPP
+        per_cls_weights = per_cls_weights / \
+            np.sum(per_cls_weights) * len(cls_num_list)
+        weights = torch.FloatTensor(per_cls_weights).cuda() 
+        weights = torch.clamp(weights, min=0.01, max=5.0) #according to BAGS SUPP
+        tfidf['classification_weights'] = weights
+
+    elif (args.csl == None):
+        tfidf['classification_weights'] = None
+    else:
+        tfidf['classification_weights'] = torch.tensor(df[args.csl],dtype=torch.float,device='cuda')
+
     if "rcnn" in args.model:
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
@@ -210,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     parser.add_argument('--rpn-score-thresh', default=None, type=float, help='rpn score threshold for faster-rcnn')
+    parser.add_argument('--csl', default=None, type=str, help='Cost Sensitive Learning')
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf weights')
     parser.add_argument('--tfidf_norm', default=0,
                         type=int, help='normalise tfidf weights')
