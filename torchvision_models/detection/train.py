@@ -120,11 +120,10 @@ def main(args):
         cls_num_list = df['instance_freq'].tolist()
         effective_num = 1.0 - np.power(beta, cls_num_list)
         per_cls_weights = (1.0 - beta) / np.array(effective_num)
-        per_cls_weights[0] = 1.0  # according to BAGS paper SUPP
-        per_cls_weights = per_cls_weights / \
-            np.sum(per_cls_weights) * len(cls_num_list)
+        # per_cls_weights = per_cls_weights / \
+        #     np.sum(per_cls_weights) * len(cls_num_list)
+        per_cls_weights[0] = 1.0
         weights = torch.FloatTensor(per_cls_weights).cuda() 
-        weights = torch.clamp(weights, min=0.01, max=5.0) #according to BAGS SUPP
         tfidf['classification_weights'] = weights
 
     elif (args.csl == None):

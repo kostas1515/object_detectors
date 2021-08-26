@@ -29,7 +29,15 @@ class YOLOForw(nn.Module):
         self.lambda_cls = cfg['lambda_cls']
         self.reduction = cfg['reduction']
 
-        self.device= torch.device('cuda')
+        #TFIDF
+        self.device = torch.device('cuda')
+        self.tfidf_norm = cfg.tfidf_norm
+        self.tfidf_batch = cfg.tfidf_batch
+        weights = torch.ones(self.num_classes,device=self.device)
+        self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
+        self.idf_logits=torch.tensor(1).cuda()
+
+        
         self.iou_type = cfg['iou_type']
         self.wh_loss = nn.MSELoss(reduction = self.reduction)
         self.xy_loss = nn.MSELoss(reduction = self.reduction)
@@ -38,13 +46,7 @@ class YOLOForw(nn.Module):
         self.nobj_loss = nn.BCEWithLogitsLoss(reduction = "None")
         self.nobj_loss = custom.FocalLoss(self.nobj_loss,gamma=cfg.gamma,alpha=cfg.alpha)
 
-        #TFIDF
-        self.tfidf_norm = cfg.tfidf_norm
-        self.tfidf_batch = cfg.tfidf_batch
-        weights = torch.ones(self.num_classes,device=self.device)
-        self.idf = custom.IDFTransformer(config.dataset.train_annotations,config.dataset.dset_name,device=self.device)
-        self.idf_logits=torch.tensor(1).cuda()
-        
+
         if cfg.tfidf[0]==1:
             weights = self.idf.idf_weights[cfg.tfidf_variant]
             if (self.tfidf_norm != 0):
@@ -66,8 +68,14 @@ class YOLOForw(nn.Module):
      
         if cfg.class_loss==0:
             self.class_loss = nn.BCEWithLogitsLoss(reduction = self.reduction,pos_weight=weights)
-        else:
+        elif cfg.class_loss==1:
             self.class_loss = nn.CrossEntropyLoss(reduction = self.reduction,weight=weights)
+        elif cfg.class_loss == 2:
+            self.class_loss = nn.BCEWithLogitsLoss(
+                reduction=self.reduction, pos_weight=weights)
+            self.class_loss = custom.EQLoss(
+                self.class_loss, img_freq=self.idf.idf_weights['img_freq'], gamma=cfg.gamma, alpha=cfg.alpha)
+
 
 
     def forward(self, input, targets=None):
@@ -124,10 +132,12 @@ class YOLOForw(nn.Module):
 
             neg_conf_loss = self.lambda_no_conf * self.nobj_loss(no_obj,torch.zeros(no_obj.shape,device=self.device))
 
-            if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-                class_loss = self.lambda_cls * self.class_loss(self.idf_logits.unsqueeze(0)*final[:,5:],tcls)
-            elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
+            if (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
                 class_loss = self.lambda_cls * self.class_loss(self.idf_logits.unsqueeze(0)*final[:,5:], tcls.max(axis=1)[1])
+            else:
+                class_loss = self.lambda_cls * \
+                    self.class_loss(self.idf_logits.unsqueeze(0)
+                                    * final[:, 5:], tcls)
 
             if self.reduction =="sum":
                 iou_loss = self.lambda_iou *  (1 - iou).sum()
@@ -156,10 +166,11 @@ class YOLOForw(nn.Module):
             xy=(torch.sigmoid(raw_pred[...,0:2]) + cxypwh[:,:2] * inw_inh - 0.5)*strides
             wh=torch.exp(raw_pred[...,2:4]) * cxypwh[:,2:4] * inw_inh * strides
             conf=torch.sigmoid(raw_pred[:,:,4:5])
-            if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-                cls = torch.sigmoid(self.idf_logits.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:])
-            elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
+            if (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
                 cls = torch.softmax(self.idf_logits.unsqueeze(0).unsqueeze(0)*raw_pred[:,:,5:],axis=2)
+            else:
+                cls = torch.sigmoid(self.idf_logits.unsqueeze(
+                    0).unsqueeze(0)*raw_pred[:, :, 5:])
             output = torch.cat((xy,wh,conf,cls),axis=2)
 
             return output.data
@@ -207,10 +218,10 @@ class YOLOForw(nn.Module):
         wh=torch.exp(raw_pred[:,2:4]) * cxypwh[:,2:4] * inw_inh * strides
         conf=torch.sigmoid(raw_pred[:,4:5])
 
-        if (type(self.class_loss)==nn.modules.loss.BCEWithLogitsLoss):
-            cls = torch.sigmoid(raw_pred[:,5:])
-        elif (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
+        if (type(self.class_loss)==nn.modules.loss.CrossEntropyLoss):
             cls = torch.softmax(raw_pred[:,5:],axis=1)
+        else:
+            cls = torch.sigmoid(raw_pred[:,5:])
         true_pred = torch.cat((xy,wh,conf,cls),axis=1)
         
         xy = (tgt[:,:2] + cxypwh[:,:2] * inw_inh - 0.5) * strides
