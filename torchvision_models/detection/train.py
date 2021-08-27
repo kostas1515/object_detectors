@@ -114,7 +114,10 @@ def main(args):
     tfidf['num_classes'] = num_classes
     tfidf['mini_batch'] = args.tfidf_mini_batch
     tfidf['tfidf_norm'] = args.tfidf_norm
-    
+
+    #pick loss function
+    tfidf['loss_function'] = args.classif
+
     if (args.csl=='eff_samp'):
         beta = 0.9999
         cls_num_list = df['instance_freq'].tolist()
@@ -135,13 +138,17 @@ def main(args):
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
     if args.model == 'fasterrcnn_resnet50_fpn':
-        model = frcnn.fasterrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
+        model = frcnn.fasterrcnn_resnet50_fpn(
+            pretrained=args.pretrained, num_classes=num_classes, tfidf=tfidf, box_score_thresh=float(args.confidence_threshold))
     elif args.model == 'retinanet_resnet50_fpn':
-        model = retinanet.retinanet_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
+        model = retinanet.retinanet_resnet50_fpn(
+            pretrained=args.pretrained, num_classes=num_classes, tfidf=tfidf, box_score_thresh=float(args.confidence_threshold))
     elif args.model == 'maskrcnn_resnet50_fpn':
-        model = mask_rcnn.maskrcnn_resnet50_fpn(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
+        model = mask_rcnn.maskrcnn_resnet50_fpn(
+            pretrained=args.pretrained, num_classes=num_classes, tfidf=tfidf, box_score_thresh=float(args.confidence_threshold))
     elif args.model == 'ssd300_vgg16':
-        model = ssd.ssd300_vgg16(pretrained=args.pretrained,num_classes=num_classes,tfidf= tfidf)
+        model = ssd.ssd300_vgg16(pretrained=args.pretrained, num_classes=num_classes,
+                                 tfidf=tfidf, box_score_thresh=float(args.confidence_threshold))
 
 
     # model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,
@@ -229,6 +236,9 @@ if __name__ == "__main__":
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     parser.add_argument('--rpn-score-thresh', default=None, type=float, help='rpn score threshold for faster-rcnn')
+    parser.add_argument('--confidence_threshold', type=float,
+                        default=0.05, help='used during inference')
+    parser.add_argument('--classif', default='ce', type=str, help='Cls Loss->[ce,bce,focal_loss]')
     parser.add_argument('--csl', default=None, type=str, help='Cost Sensitive Learning')
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf weights')
     parser.add_argument('--tfidf_norm', default=0,

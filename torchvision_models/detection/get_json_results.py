@@ -71,9 +71,12 @@ if __name__ == "__main__":
 
     parser.add_argument('--confidence_threshold',type=float, default=0.05, help='used during inference')
     parser.add_argument('--iou_threshold',type=float, default=0.5, help='used during inference')
-    parser.add_argument('--max-detections',type=int, default=100, help='used during inference')
+    parser.add_argument('--max_detections',type=int, default=100, help='used during inference')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--tfidf', default=None, type=str, help='tfidf variant')
+    parser.add_argument('--classif', default='ce', type=str,
+                        help='Cls Loss->[ce,bce,focal_loss]')
+
 
     args = parser.parse_args()
     exp_name = (args.resume).split("/")[-2]
@@ -107,6 +110,7 @@ if __name__ == "__main__":
     tfidf['mini_batch'] = False
     tfidf['tfidf_norm'] = 0
     tfidf['classification_weights'] = None
+    tfidf['loss_function'] = args.classif
     
     if args.model == 'fasterrcnn_resnet50_fpn':
         model = frcnn.fasterrcnn_resnet50_fpn(pretrained=False,num_classes=num_classes,tfidf=tfidf,

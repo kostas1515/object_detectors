@@ -11,6 +11,8 @@ from torchvision.ops import misc as misc_nn_ops
 from torchvision.ops import roi_align
 
 from torchvision.models.detection import _utils as det_utils
+from torchvision.ops import sigmoid_focal_loss
+
 
 from torch.jit.annotations import Optional, List, Dict, Tuple
 import pandas as pd
@@ -18,7 +20,7 @@ import numpy as np
 
 
 
-def fastrcnn_loss(class_logits, box_regression, labels, regression_targets,weights=None):
+def fastrcnn_loss(class_logits, box_regression, labels, regression_targets,weights=None,loss_type='ce'):
     # 
     """
     type: (Tensor, Tensor, List[Tensor], List[Tensor])
@@ -36,9 +38,27 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets,weigh
     """  
 
     labels = torch.cat(labels, dim=0)
+    bs = labels.shape[0]
+
     regression_targets = torch.cat(regression_targets, dim=0)
-    classification_loss = F.cross_entropy(
-        class_logits, labels, weight=weights)
+    if loss_type== 'ce':
+        classification_loss = F.cross_entropy(
+            class_logits, labels, weight=weights)
+    else:
+        y_onehot = torch.cuda.FloatTensor(class_logits.shape)
+        y_onehot.zero_()
+        y_onehot.scatter_(1, labels.unsqueeze(1), 1)
+        y_onehot[:,0]=0.0
+        # print(y_onehot)
+        # print(class_logits)
+        if loss_type == 'bce':
+            classification_loss = F.binary_cross_entropy_with_logits(
+                class_logits, y_onehot, reduction='sum')/(8*bs)
+        elif loss_type == 'focal_loss':
+            classification_loss = sigmoid_focal_loss(
+                class_logits, y_onehot, reduction='sum')/bs
+
+
     
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
@@ -534,6 +554,8 @@ class RoIHeads(torch.nn.Module):
         self.tfidf=tfidf['values']
         self.tfidf_mini_batch = tfidf['mini_batch']
         self.tfidf_norm = tfidf['tfidf_norm']
+        self.loss_function_name = tfidf['loss_function']
+        print(tfidf)
 
         self.box_similarity = box_ops.box_iou
         # assign ground-truth boxes for each proposal
@@ -681,7 +703,11 @@ class RoIHeads(torch.nn.Module):
         pred_boxes = self.box_coder.decode(box_regression, proposals)
         
         #tfidf
-        pred_scores = F.softmax(self.tfidf_post*class_logits, -1)
+        if self.loss_function_name == 'ce':
+            pred_scores = F.softmax(self.tfidf_post*class_logits, -1)
+        else:
+            pred_scores = torch.sigmoid(class_logits)
+
 
         # split boxes and scores per image
         if len(boxes_per_image) == 1:
@@ -778,7 +804,7 @@ class RoIHeads(torch.nn.Module):
         if self.training:
             assert labels is not None and regression_targets is not None
             loss_classifier, loss_box_reg = fastrcnn_loss(
-                self.tfidf*class_logits, box_regression, labels, regression_targets,weights=self.classification_weights)
+                self.tfidf*class_logits, box_regression, labels, regression_targets, weights=self.classification_weights, loss_type=self.loss_function_name)
             losses = {
                 "loss_classifier": loss_classifier,
                 "loss_box_reg": loss_box_reg
