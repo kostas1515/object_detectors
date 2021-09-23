@@ -17,6 +17,7 @@ from torchvision.ops import sigmoid_focal_loss
 from torch.jit.annotations import Optional, List, Dict, Tuple
 import pandas as pd
 import numpy as np
+import sys
 
 
 
@@ -49,17 +50,34 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets,weigh
         y_onehot.zero_()
         y_onehot.scatter_(1, labels.unsqueeze(1), 1)
         y_onehot[:,0]=0.0
-        # print(y_onehot)
-        # print(class_logits)
         if loss_type == 'bce':
             classification_loss = F.binary_cross_entropy_with_logits(
-                class_logits, y_onehot, reduction='sum')/(8*bs)
+                class_logits, y_onehot, reduction='sum')/(bs)
         elif loss_type == 'focal_loss':
             classification_loss = sigmoid_focal_loss(
                 class_logits, y_onehot, reduction='sum')/bs
-
-
-    
+        elif loss_type.startswith('gombit'):
+            cprior = 1.96 # calibrating param, it ensures positive and negative grads have eq magnitude
+            class_logits=torch.clamp(class_logits-cprior,min=-3,max=5)
+#             print(class_logits)
+            pestim= 1/(torch.exp(torch.exp(-(class_logits))))
+            classification_loss = F.binary_cross_entropy(
+                pestim, y_onehot, reduction='none')
+            if loss_type.endswith('fl'):
+                p_t = pestim * y_onehot + (1 - pestim) * (1 - y_onehot)
+                classification_loss = classification_loss * ((1 - p_t) ** 2)
+                alpha_t = 0.25 * y_onehot + (1 - 0.25) * (1 - y_onehot)
+                classification_loss = alpha_t * classification_loss
+                classification_loss=classification_loss.sum()/bs
+            else:
+                classification_loss=classification_loss.sum()/bs
+                if classification_loss>5:
+                    classification_loss/=4
+#             pos_grad = (torch.exp(-class_logits)*y_onehot).sum()
+#             neg_grad = (torch.exp(-class_logits)/(torch.exp(torch.exp(-class_logits))-1))*(1-y_onehot)
+#             print(f'pos grad is:{pos_grad}, neg grad is:{neg_grad.sum()}')
+            
+            
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
     # advanced indexing
@@ -705,8 +723,10 @@ class RoIHeads(torch.nn.Module):
         #tfidf
         if self.loss_function_name == 'ce':
             pred_scores = F.softmax(self.tfidf_post*class_logits, -1)
+        elif self.loss_function_name.startswith('gombit'):
+            pred_scores = 1/(torch.exp(torch.exp(-self.tfidf_post*(class_logits-1.96))))
         else:
-            pred_scores = torch.sigmoid(class_logits)
+            pred_scores = torch.sigmoid(self.tfidf_post*class_logits)
 
 
         # split boxes and scores per image

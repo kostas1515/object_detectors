@@ -104,7 +104,7 @@ def main(args):
     df = pd.read_csv(f'../{args.dataset}_files/idf_{num_classes}.csv')
     if (args.tfidf):
         tfidf_values= df[args.tfidf]
-        tfidf_values = torch.tensor(tfidf_values, device='cuda').unsqueeze(0)
+        tfidf_values = torch.tensor(tfidf_values, device='cuda',dtype=torch.float).unsqueeze(0)
         if args.tfidf_norm != 0 :
             tfidf_values /= torch.norm(tfidf_values, p=args.tfidf_norm)
     else:
